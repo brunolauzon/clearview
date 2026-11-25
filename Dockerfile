@@ -1,7 +1,11 @@
 # syntax=docker/dockerfile:1
 
+# The build and deps stages produce only JavaScript, so they always run on the build machine's
+# own architecture (--platform=$BUILDPLATFORM). A multi-arch build then needs no emulation
+# except for the final stage, which only copies files.
+
 # ---- build: compile the web bundle and the server bundle ----
-FROM node:22-alpine AS build
+FROM --platform=$BUILDPLATFORM node:22-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY shared/package.json shared/
@@ -14,17 +18,21 @@ COPY server server
 COPY web web
 RUN npm run build
 
-# ---- deps: production dependencies for the server only ----
-FROM node:22-alpine AS deps
+# ---- deps: production dependencies for the server only (all pure JavaScript) ----
+FROM --platform=$BUILDPLATFORM node:22-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY shared/package.json shared/
 COPY server/package.json server/
 COPY web/package.json web/
-RUN npm ci --omit=dev --workspace=server --include-workspace-root=false --no-audit --no-fund
+RUN npm ci --omit=dev --workspace=server --include-workspace-root=false --no-audit --no-fund \
+ && if find node_modules -name '*.node' | grep -q .; then echo "native addon found: deps must be installed per target arch" >&2; exit 1; fi
 
 # ---- runtime ----
 FROM node:22-alpine
+LABEL org.opencontainers.image.title="clearview" \
+      org.opencontainers.image.description="Terminal-style dashboard for an Unraid homelab" \
+      org.opencontainers.image.source="https://github.com/brunolauzon/clearview"
 ENV NODE_ENV=production \
     PORT=7878 \
     WEB_DIR=/app/web \

@@ -23,7 +23,30 @@ A terminal-style dashboard for an Unraid homelab. Looks like k9s, runs in a brow
 
 Optional: copy `config/clearview.example.yaml` to `/mnt/user/appdata/clearview/clearview.yaml` to add links and hide containers.
 
-Prefer the Unraid UI? `unraid-template.xml` is a Docker template. It needs the image pushed to a registry first.
+## Install from the Unraid UI (template)
+
+`unraid-template.xml` is an Unraid Docker template. It pulls `ghcr.io/brunolauzon/clearview:latest`, which `.github/workflows/image.yml` builds for amd64 and arm64 on every push to `main`.
+
+One-time setup on GitHub:
+
+1. Push to `main` and wait for the **image** workflow to finish (Actions tab).
+2. Open the repo's **Packages**, then **clearview**, then **Package settings**, and set visibility to **Public**. Unraid cannot pull a private package without a login.
+
+Then on the server, pick one:
+
+- **Template repository:** Settings, Docker, Template repositories, add `https://github.com/brunolauzon/clearview`, save. Docker, Add Container, choose **clearview**.
+- **Copy the file:**
+
+  ```bash
+  wget -O /boot/config/plugins/dockerMan/templates-user/my-clearview.xml \
+    https://raw.githubusercontent.com/brunolauzon/clearview/main/unraid-template.xml
+  ```
+
+  Then Docker, Add Container, choose **my-clearview** from the template list.
+
+Fill in the server name and, if you want them, the Tautulli and Grafana fields. The Docker socket and `/mnt` mounts are already set. Apply, then open the WebUI from the container's menu.
+
+Release tags (`git tag v0.1.0 && git push --tags`) also publish `:0.1.0` and `:0.1`. Building on your Mac gives an arm64 image that will not run on an x86 server, so let the workflow build it, or use `docker buildx build --platform linux/amd64`.
 
 ## How containers get their WebUI link
 
