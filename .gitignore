@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+.env.local
+config/*.yaml
+!config/clearview.example.yaml
+*.log
+.DS_Store
+.vite/
+coverage/
+.claude/

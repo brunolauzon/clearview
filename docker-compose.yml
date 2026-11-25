@@ -1,0 +1,28 @@
+# On Unraid: clone this repo somewhere under /mnt/user/appdata, copy .env.example to .env,
+# edit it, then run:  docker compose up -d --build
+services:
+  clearview:
+    build: .
+    container_name: clearview
+    restart: unless-stopped
+    # Shown in the header. Inside a container the OS hostname is a random id.
+    hostname: ${HOST_NAME:-tower}
+    ports:
+      - "7878:7878"
+    environment:
+      HOST_NAME: ${HOST_NAME:-tower}
+      # Server LAN address, used to fill Unraid's [IP] token in WebUI links.
+      # Leave unset to use whatever address you typed in the browser.
+      HOST_IP: ${HOST_IP:-}
+      TAUTULLI_URL: ${TAUTULLI_URL:-}
+      TAUTULLI_API_KEY: ${TAUTULLI_API_KEY:-}
+      GRAFANA_URL: ${GRAFANA_URL:-}
+      GRAFANA_TOKEN: ${GRAFANA_TOKEN:-}
+    volumes:
+      # Container discovery. Read-only mount only hides the file mode: the Docker API is still
+      # root-equivalent. See "Security" in the README for the socket-proxy alternative.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Array, cache and pool usage (statfs only, nothing is read from the disks).
+      - /mnt:/host/mnt:ro
+      # clearview.yaml: custom links, hidden containers, overrides.
+      - ${CONFIG_DIR:-/mnt/user/appdata/clearview}:/config:ro

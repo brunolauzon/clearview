@@ -1,0 +1,284 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { DiskInfo, LinkInfo, PlexStream } from '@clearview/shared';
+import { Crumbs } from './components/Crumbs';
+import { Header } from './components/Header';
+import { PromptBar, type PromptMode } from './components/PromptBar';
+import { useNow } from './hooks/useBucket';
+import { useStream } from './hooks/useStream';
+import { parseCommand, VIEWS, viewFromHash, type ViewId } from './lib/commands';
+import { resolveUrl } from './lib/format';
+import { containerSearchText, filterBy, SORT_KEYS, sortContainers, type SortKey } from './lib/rows';
+import { AlertsView } from './views/Alerts';
+import { ContainersView } from './views/Containers';
+import { DisksView } from './views/Disks';
+import { HelpView } from './views/Help';
+import { HomeView } from './views/Home';
+import { LinksView } from './views/Links';
+import { PlexView } from './views/Plex';
+
+/** Which list the selection cursor moves over in each view. */
+type ListKind = 'containers' | 'alerts' | 'streams' | 'disks' | 'links' | null;
+const LIST_OF: Record<ViewId, ListKind> = {
+  home: 'containers',
+  containers: 'containers',
+  plex: 'streams',
+  alerts: 'alerts',
+  disks: 'disks',
+  links: 'links',
+  help: null,
+};
+
+export default function App() {
+  const s = useStream();
+  const now = useNow();
+
+  const [view, setView] = useState<ViewId>(() => viewFromHash(location.hash));
+  const [mode, setMode] = useState<PromptMode>('normal');
+  const [filter, setFilter] = useState('');
+  const [sel, setSel] = useState(0);
+  const [sort, setSort] = useState<SortKey>('name');
+  const [flash, setFlash] = useState<string | null>(null);
+  const flashTimer = useRef<number>();
+
+  const hostIp = s.meta?.hostIp ?? null;
+
+  const say = useCallback((msg: string) => {
+    setFlash(msg);
+    window.clearTimeout(flashTimer.current);
+    flashTimer.current = window.setTimeout(() => setFlash(null), 2500);
+  }, []);
+
+  const go = useCallback((next: ViewId) => {
+    setView(next);
+    setFilter('');
+    setSel(0);
+    history.replaceState(null, '', next === 'home' ? location.pathname : `#${next}`);
+  }, []);
+
+  useEffect(() => {
+    const onHash = () => setView(viewFromHash(location.hash));
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+
+  useEffect(() => {
+    document.title = s.meta?.title ? `${s.meta.title} · clearview` : 'clearview';
+  }, [s.meta?.title]);
+
+  // ---------- rows per list, filtered ----------
+  const containers = useMemo(
+    () => sortContainers(filterBy(s.containers?.data ?? [], filter, containerSearchText), sort),
+    [s.containers, filter, sort],
+  );
+  const alerts = useMemo(
+    () => filterBy(s.alerts?.data ?? [], filter, (a) => `${a.name} ${a.severity} ${a.summary ?? ''}`),
+    [s.alerts, filter],
+  );
+  const streams: PlexStream[] = useMemo(
+    () => filterBy(s.plex?.data?.streams ?? [], filter, (x) => `${x.user} ${x.title} ${x.player} ${x.decision}`),
+    [s.plex, filter],
+  );
+  const disks: DiskInfo[] = useMemo(() => filterBy(s.host?.data?.disks ?? [], filter, (d) => `${d.name} ${d.mount}`), [s.host, filter]);
+  const links: LinkInfo[] = useMemo(
+    () => filterBy(s.links?.data ?? [], filter, (l) => `${l.name} ${l.group} ${l.url} ${l.description ?? ''}`),
+    [s.links, filter],
+  );
+
+  const kind = LIST_OF[view];
+  const count = kind === 'containers' ? containers.length : kind === 'alerts' ? alerts.length : kind === 'streams' ? streams.length : kind === 'disks' ? disks.length : kind === 'links' ? links.length : 0;
+
+  useEffect(() => {
+    setSel((i) => Math.min(i, Math.max(0, count - 1)));
+  }, [count]);
+
+  const open = useCallback(
+    (i: number) => {
+      let url: string | null = null;
+      let label = '';
+      if (kind === 'containers') {
+        const c = containers[i];
+        url = resolveUrl(c?.url ?? null, hostIp);
+        label = c?.name ?? '';
+      } else if (kind === 'alerts') {
+        const a = alerts[i];
+        url = resolveUrl(a?.url ?? null, hostIp);
+        label = a?.name ?? '';
+      } else if (kind === 'links') {
+        const l = links[i];
+        url = l?.url ?? null;
+        label = l?.name ?? '';
+      }
+      if (url) window.open(url, '_blank', 'noopener,noreferrer');
+      else if (label) say(`${label}: no WebUI`);
+    },
+    [kind, containers, alerts, links, hostIp, say],
+  );
+
+  // ---------- keyboard ----------
+  useEffect(() => {
+    if (mode !== 'normal') return;
+    const move = (delta: number) => setSel((i) => Math.min(Math.max(0, count - 1), Math.max(0, i + delta)));
+
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA') return;
+      if (e.metaKey || e.altKey) return;
+
+      let handled = true;
+      if (e.ctrlKey) {
+        if (e.key === 'd') move(10);
+        else if (e.key === 'u') move(-10);
+        else handled = false;
+      } else {
+        switch (e.key) {
+          case 'j':
+          case 'ArrowDown':
+            move(1);
+            break;
+          case 'k':
+          case 'ArrowUp':
+            move(-1);
+            break;
+          case 'g':
+          case 'Home':
+            setSel(0);
+            break;
+          case 'G':
+          case 'End':
+            setSel(Math.max(0, count - 1));
+            break;
+          case 'Enter':
+          case 'o':
+            open(sel);
+            break;
+          case '/':
+            setMode('filter');
+            break;
+          case ':':
+            setMode('command');
+            break;
+          case '?':
+            go('help');
+            break;
+          case 's':
+            if (kind === 'containers') {
+              const next = SORT_KEYS[(SORT_KEYS.indexOf(sort) + 1) % SORT_KEYS.length]!;
+              setSort(next);
+              say(`sort: ${next}`);
+            }
+            break;
+          case 'Escape':
+            if (filter) setFilter('');
+            else if (view !== 'home') go('home');
+            break;
+          default: {
+            const target = VIEWS.find((v) => v.key === e.key);
+            if (target) go(target.id);
+            else handled = false;
+          }
+        }
+      }
+      // keep Enter from also activating a focused row link: we open the selected row ourselves
+      if (handled) e.preventDefault();
+    };
+
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [mode, count, sel, open, go, filter, view, kind, sort, say]);
+
+  // ---------- prompt ----------
+  const onSubmit = (value: string) => {
+    if (mode === 'command') {
+      const target = parseCommand(value);
+      if (target) go(target);
+      else if (value.trim()) say(`unknown command: ${value.trim()}`);
+    } else {
+      setFilter(value);
+      setSel(0);
+    }
+    setMode('normal');
+  };
+
+  const onCancel = () => {
+    if (mode === 'filter') setFilter('');
+    setMode('normal');
+  };
+
+  const alertList = s.alerts?.data ?? [];
+  const common = { sel, onSelect: setSel, filter };
+
+  let body: React.ReactNode;
+  switch (view) {
+    case 'home':
+      body = (
+        <HomeView
+          host={s.host}
+          alerts={s.alerts}
+          plex={s.plex}
+          containers={containers}
+          containersSnap={s.containers}
+          sel={sel}
+          onSelect={setSel}
+          hostIp={hostIp}
+          sort={sort}
+          filter={filter}
+          now={now}
+        />
+      );
+      break;
+    case 'containers':
+      body = (
+        <ContainersView
+          rows={containers}
+          hostIp={hostIp}
+          sort={sort}
+          loading={!s.containers}
+          error={s.containers && !s.containers.ok ? s.containers.error : null}
+          {...common}
+        />
+      );
+      break;
+    case 'plex':
+      body = <PlexView snap={s.plex} streams={streams} now={now} tautulliUrl={s.meta?.tautulliUrl ?? null} {...common} />;
+      break;
+    case 'alerts':
+      body = <AlertsView snap={s.alerts} alerts={alerts} hostIp={hostIp} now={now} {...common} />;
+      break;
+    case 'disks':
+      body = <DisksView snap={s.host} disks={disks} {...common} />;
+      break;
+    case 'links':
+      body = <LinksView snap={s.links} links={links} {...common} />;
+      break;
+    case 'help':
+      body = <HelpView />;
+      break;
+  }
+
+  return (
+    <div className="app">
+      <Header
+        host={s.host?.data ?? null}
+        alertCount={alertList.length}
+        criticalCount={alertList.filter((a) => a.severity === 'critical').length}
+        streamCount={s.plex?.data?.streamCount ?? 0}
+        onNavigate={go}
+        onPrompt={setMode}
+      />
+      <main className="main">{body}</main>
+      <Crumbs view={view} filter={filter} connected={s.connected} demo={s.meta?.demo ?? false} version={s.meta?.version ?? null} />
+      <PromptBar
+        mode={mode}
+        initial={mode === 'filter' ? filter : ''}
+        flash={flash}
+        onChange={(v) => {
+          setFilter(v);
+          setSel(0);
+        }}
+        onSubmit={onSubmit}
+        onCancel={onCancel}
+        onActivate={setMode}
+      />
+    </div>
+  );
+}

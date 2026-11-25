@@ -1,0 +1,44 @@
+# Copy to /mnt/user/appdata/clearview/clearview.yaml (or wherever CONFIG_DIR points).
+# Everything here is optional. Containers are discovered automatically.
+
+# Browser tab title prefix.
+title: tower
+
+# Other devices on your network. `check` decides what the status dot means:
+#   http  any HTTP response counts as up (default; self-signed certs are fine)
+#   tcp   the port accepts a connection
+#   none  no probe, just a link
+links:
+  - name: Router
+    url: http://192.168.1.1
+    group: network
+    description: Gateway
+  - name: UniFi Controller
+    url: https://192.168.1.2:8443
+    group: network
+  - name: Proxmox
+    url: https://192.168.1.20:8006
+    group: compute
+    check: tcp
+  - name: Hue Bridge
+    url: http://192.168.1.70
+    group: devices
+    check: none
+
+containers:
+  # Hide by container name. A container can also opt out with the label clearview.hide=true
+  hide:
+    - watchtower
+  # Override what discovery found, by container name.
+  overrides:
+    plex:
+      name: Plex
+      url: http://[IP]:32400/web
+    # pihole:
+    #   url: http://[IP]:8053/admin
+
+# Only needed off Unraid or for custom mounts. By default every folder under /host/mnt
+# (user, cache, disk1..n, pools) is shown.
+# disks:
+#   - name: array
+#     path: /host/mnt/user

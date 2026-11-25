@@ -1,0 +1,44 @@
+import { useEffect, useState } from 'react';
+import type { AlertInfo, ContainerInfo, HostStats, LinkInfo, Meta, PlexData, Snapshot } from '@clearview/shared';
+
+export interface StreamState {
+  connected: boolean;
+  meta: Meta | null;
+  host: Snapshot<HostStats> | null;
+  containers: Snapshot<ContainerInfo[]> | null;
+  plex: Snapshot<PlexData> | null;
+  alerts: Snapshot<AlertInfo[]> | null;
+  links: Snapshot<LinkInfo[]> | null;
+}
+
+const TOPICS = ['meta', 'host', 'containers', 'plex', 'alerts', 'links'] as const;
+
+const initial: StreamState = {
+  connected: false,
+  meta: null,
+  host: null,
+  containers: null,
+  plex: null,
+  alerts: null,
+  links: null,
+};
+
+/** One EventSource for the whole app. The browser reconnects on its own; the server replays the latest value of every topic. */
+export function useStream(): StreamState {
+  const [state, setState] = useState<StreamState>(initial);
+
+  useEffect(() => {
+    const es = new EventSource('/api/stream');
+    es.onopen = () => setState((s) => ({ ...s, connected: true }));
+    es.onerror = () => setState((s) => ({ ...s, connected: false }));
+    for (const topic of TOPICS) {
+      es.addEventListener(topic, (e) => {
+        const data = JSON.parse((e as MessageEvent<string>).data);
+        setState((s) => ({ ...s, connected: true, [topic]: data }));
+      });
+    }
+    return () => es.close();
+  }, []);
+
+  return state;
+}
