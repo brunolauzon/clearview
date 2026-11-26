@@ -1,6 +1,6 @@
 import http from 'node:http';
 import type { ContainerInfo, ContainerState, PortMapping } from '@clearview/shared';
-import type { ContainerOverride } from '../config';
+import type { ContainerOverride, GroupRule } from '../config';
 import { mapLimit } from '../util';
 
 // ---------- minimal Docker Engine API client (unix socket or tcp, e.g. a socket proxy) ----------
@@ -196,10 +196,25 @@ export function resolveWebUrl(i: UrlInput): string | null {
   return null;
 }
 
+/** `*` matches any run of characters, everything else is literal. Case-insensitive, whole name. */
+export function globToRegExp(pattern: string): RegExp {
+  const escaped = pattern.trim().replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+  return new RegExp(`^${escaped}$`, 'i');
+}
+
+/** The first category (in config order) with a pattern matching the container name. */
+export function groupFor(name: string, rules: GroupRule[]): string | null {
+  for (const rule of rules) {
+    if (rule.containers.some((p) => globToRegExp(p).test(name))) return rule.name;
+  }
+  return null;
+}
+
 export interface BuildOptions {
   hostIp: string | null;
   overrides: Record<string, ContainerOverride>;
   hide: string[];
+  groups: GroupRule[];
   now: number;
 }
 
@@ -233,7 +248,8 @@ export function toContainerInfo(raw: RawContainer, startedAt: string | null, opt
       hostIp: opts.hostIp,
     }),
     icon: override.icon ?? labels['clearview.icon'] ?? labels['net.unraid.docker.icon'] ?? null,
-    group: override.group ?? labels['clearview.group'] ?? null,
+    // most specific wins: per-container override, then the container's own label, then the groups: lists
+    group: override.group ?? labels['clearview.group'] ?? groupFor(rawName, opts.groups),
     managed: 'net.unraid.docker.managed' in labels,
   };
 }

@@ -24,6 +24,12 @@ export function fmtBytes(n: number): string {
   return `${v >= 10 || i === 0 ? Math.round(v) : v.toFixed(1)}${units[i]}`;
 }
 
+/** CPU like `docker stats`: one decimal under 10%, whole numbers above, "-" when not measured yet. */
+export function fmtCpu(pct: number | null | undefined): string {
+  if (pct === null || pct === undefined) return '-';
+  return pct < 10 ? `${pct.toFixed(1)}%` : `${Math.round(pct)}%`;
+}
+
 export function fmtKbps(kbps: number): string {
   if (kbps <= 0) return '0';
   return kbps >= 1000 ? `${(kbps / 1000).toFixed(1)} Mbps` : `${Math.round(kbps)} kbps`;

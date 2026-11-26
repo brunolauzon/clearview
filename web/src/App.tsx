@@ -16,6 +16,8 @@ import { HomeView } from './views/Home';
 import { LinksView } from './views/Links';
 import { PlexView } from './views/Plex';
 
+const NO_GROUPS: string[] = [];
+
 /** Which list the selection cursor moves over in each view. */
 type ListKind = 'containers' | 'alerts' | 'streams' | 'disks' | 'links' | null;
 const LIST_OF: Record<ViewId, ListKind> = {
@@ -36,7 +38,7 @@ export default function App() {
   const [mode, setMode] = useState<PromptMode>('normal');
   const [filter, setFilter] = useState('');
   const [sel, setSel] = useState(0);
-  const [sort, setSort] = useState<SortKey>('name');
+  const [sort, setSort] = useState<SortKey>('group');
   const [flash, setFlash] = useState<string | null>(null);
   const flashTimer = useRef<number>();
 
@@ -66,9 +68,13 @@ export default function App() {
   }, [s.meta?.title]);
 
   // ---------- rows per list, filtered ----------
+  const stats = s.stats?.data ?? undefined;
+  // only re-sort on live numbers when the sort actually depends on them
+  const sortStats = sort === 'cpu' || sort === 'mem' ? stats : undefined;
+  const groupOrder = s.meta?.groups ?? NO_GROUPS;
   const containers = useMemo(
-    () => sortContainers(filterBy(s.containers?.data ?? [], filter, containerSearchText), sort),
-    [s.containers, filter, sort],
+    () => sortContainers(filterBy(s.containers?.data ?? [], filter, containerSearchText), sort, sortStats, groupOrder),
+    [s.containers, filter, sort, sortStats, groupOrder],
   );
   const alerts = useMemo(
     () => filterBy(s.alerts?.data ?? [], filter, (a) => `${a.name} ${a.severity} ${a.summary ?? ''}`),
@@ -90,6 +96,22 @@ export default function App() {
   useEffect(() => {
     setSel((i) => Math.min(i, Math.max(0, count - 1)));
   }, [count]);
+
+  // When the rows reorder or change under the cursor (live cpu sort, a container appearing), keep the
+  // same container selected instead of the same row number. Skipped when the user changed view,
+  // filter or sort, which reset the selection on purpose.
+  const track = useRef({ rows: containers, filter, view, sort });
+  useEffect(() => {
+    const t = track.current;
+    if (kind === 'containers' && t.filter === filter && t.view === view && t.sort === sort) {
+      const id = t.rows[sel]?.id;
+      const idx = id ? containers.findIndex((c) => c.id === id) : -1;
+      if (idx >= 0 && idx !== sel) setSel(idx);
+    }
+    track.current = { rows: containers, filter, view, sort };
+    // `sel` is read, not a trigger: only a change in the rows should move the cursor
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [containers, filter, view, sort]);
 
   const open = useCallback(
     (i: number) => {
@@ -221,6 +243,7 @@ export default function App() {
           onSelect={setSel}
           hostIp={hostIp}
           sort={sort}
+          stats={stats}
           filter={filter}
           now={now}
         />
@@ -232,6 +255,7 @@ export default function App() {
           rows={containers}
           hostIp={hostIp}
           sort={sort}
+          stats={stats}
           loading={!s.containers}
           error={s.containers && !s.containers.ok ? s.containers.error : null}
           {...common}

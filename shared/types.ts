@@ -17,6 +17,8 @@ export interface Meta {
   demo: boolean;
   /** Non-null when the server was told its LAN address; clients substitute `[IP]` with this. */
   hostIp: string | null;
+  /** container categories in the order they should be listed */
+  groups: string[];
   tautulliUrl: string | null;
   grafanaUrl: string | null;
 }
@@ -77,9 +79,21 @@ export interface ContainerInfo {
   /** May contain the literal token `[IP]` when the server has no HOST_IP; clients substitute it. */
   url: string | null;
   icon: string | null;
+  /** category, e.g. "Media"; null when the container is not in any */
   group: string | null;
   /** true when the container carries Unraid's `net.unraid.docker.managed` label */
   managed: boolean;
+}
+
+/** Live usage for one running container, keyed by ContainerInfo.id. */
+export interface ContainerStats {
+  /** percent of one CPU core, like `docker stats` (can exceed 100); null until two samples exist */
+  cpuPct: number | null;
+  /** memory in use, excluding reclaimable page cache, like `docker stats` */
+  memBytes: number;
+  /** the container's memory limit, or the host's RAM when unlimited */
+  memLimitBytes: number;
+  memPct: number;
 }
 
 // ---------- alerts (Grafana) ----------

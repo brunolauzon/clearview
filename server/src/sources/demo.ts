@@ -1,6 +1,7 @@
 import type {
   AlertInfo,
   ContainerInfo,
+  ContainerStats,
   ContainerState,
   HostStats,
   LinkInfo,
@@ -12,6 +13,8 @@ import type {
 const TB = 1024 ** 4;
 const GB = 1024 ** 3;
 const started = Date.now();
+
+const demoId = (name: string): string => name.slice(0, 12).padEnd(12, '0');
 
 export function demoHost(): HostStats {
   const t = (Date.now() - started) / 1000;
@@ -52,20 +55,45 @@ interface DemoContainer {
   state: ContainerState;
   port: number | null;
   upDays: number;
-  group?: string;
 }
 
+// Category display order, and which category each demo container is in (unlisted ones show under "other").
+export const DEMO_GROUPS = ['Infrastructure', 'Media', 'Downloads', 'Home', 'Apps'];
+
+const GROUP_OF: Record<string, string> = {
+  grafana: 'Infrastructure',
+  prometheus: 'Infrastructure',
+  'node-exporter': 'Infrastructure',
+  pihole: 'Infrastructure',
+  mariadb: 'Infrastructure',
+  redis: 'Infrastructure',
+  watchtower: 'Infrastructure',
+  clearview: 'Infrastructure',
+  plex: 'Media',
+  tautulli: 'Media',
+  overseerr: 'Media',
+  sonarr: 'Downloads',
+  radarr: 'Downloads',
+  prowlarr: 'Downloads',
+  qbittorrent: 'Downloads',
+  'home-assistant': 'Home',
+  nextcloud: 'Apps',
+  immich: 'Apps',
+  'paperless-ngx': 'Apps',
+  vaultwarden: 'Apps',
+};
+
 const CONTAINERS: DemoContainer[] = [
-  { name: 'plex', image: 'lscr.io/linuxserver/plex', state: 'healthy', port: 32400, upDays: 12, group: 'media' },
-  { name: 'tautulli', image: 'lscr.io/linuxserver/tautulli', state: 'running', port: 8181, upDays: 12, group: 'media' },
-  { name: 'overseerr', image: 'lscr.io/linuxserver/overseerr', state: 'running', port: 5055, upDays: 30, group: 'media' },
-  { name: 'sonarr', image: 'lscr.io/linuxserver/sonarr', state: 'healthy', port: 8989, upDays: 12, group: 'arr' },
-  { name: 'radarr', image: 'lscr.io/linuxserver/radarr', state: 'healthy', port: 7878, upDays: 12, group: 'arr' },
-  { name: 'prowlarr', image: 'lscr.io/linuxserver/prowlarr', state: 'running', port: 9696, upDays: 12, group: 'arr' },
-  { name: 'qbittorrent', image: 'lscr.io/linuxserver/qbittorrent', state: 'running', port: 8080, upDays: 5, group: 'arr' },
-  { name: 'grafana', image: 'grafana/grafana', state: 'running', port: 3000, upDays: 41, group: 'monitoring' },
-  { name: 'prometheus', image: 'prom/prometheus', state: 'running', port: 9090, upDays: 41, group: 'monitoring' },
-  { name: 'node-exporter', image: 'prom/node-exporter', state: 'running', port: null, upDays: 41, group: 'monitoring' },
+  { name: 'plex', image: 'lscr.io/linuxserver/plex', state: 'healthy', port: 32400, upDays: 12 },
+  { name: 'tautulli', image: 'lscr.io/linuxserver/tautulli', state: 'running', port: 8181, upDays: 12 },
+  { name: 'overseerr', image: 'lscr.io/linuxserver/overseerr', state: 'running', port: 5055, upDays: 30 },
+  { name: 'sonarr', image: 'lscr.io/linuxserver/sonarr', state: 'healthy', port: 8989, upDays: 12 },
+  { name: 'radarr', image: 'lscr.io/linuxserver/radarr', state: 'healthy', port: 7878, upDays: 12 },
+  { name: 'prowlarr', image: 'lscr.io/linuxserver/prowlarr', state: 'running', port: 9696, upDays: 12 },
+  { name: 'qbittorrent', image: 'lscr.io/linuxserver/qbittorrent', state: 'running', port: 8080, upDays: 5 },
+  { name: 'grafana', image: 'grafana/grafana', state: 'running', port: 3000, upDays: 41 },
+  { name: 'prometheus', image: 'prom/prometheus', state: 'running', port: 9090, upDays: 41 },
+  { name: 'node-exporter', image: 'prom/node-exporter', state: 'running', port: null, upDays: 41 },
   { name: 'home-assistant', image: 'ghcr.io/home-assistant/home-assistant', state: 'running', port: 8123, upDays: 19 },
   { name: 'pihole', image: 'pihole/pihole', state: 'healthy', port: 8053, upDays: 41 },
   { name: 'vaultwarden', image: 'vaultwarden/server', state: 'healthy', port: 8222, upDays: 41 },
@@ -86,7 +114,7 @@ export function demoContainers(): ContainerInfo[] {
     const alive = c.state !== 'exited';
     const upSec = alive ? Math.max(95, c.upDays * 86400 + 3600) : null;
     return {
-      id: c.name.slice(0, 12).padEnd(12, '0'),
+      id: demoId(c.name),
       name: c.name,
       image: c.image,
       state: c.state,
@@ -96,7 +124,7 @@ export function demoContainers(): ContainerInfo[] {
       ports: c.port ? [{ private: c.port, public: c.port, proto: 'tcp' }] : [],
       url: c.port ? `http://[IP]:${c.port}/` : null,
       icon: null,
-      group: c.group ?? null,
+      group: GROUP_OF[c.name] ?? null,
       managed: true,
     };
   }).sort((a, b) => a.name.localeCompare(b.name));
@@ -207,6 +235,50 @@ export function demoPlex(): PlexData {
       { id: 'top_tv', title: 'top shows', rows: [{ label: 'Severance', plays: 38 }, { label: 'The Bear', plays: 31 }, { label: 'Andor', plays: 24 }] },
     ],
   };
+}
+
+// [cpu % of one core, memory in MB, memory limit in GB (default: the 64 GB host)]
+const LOAD: Record<string, [number, number, number?]> = {
+  plex: [22, 2150],
+  immich: [48, 3600, 6],
+  'paperless-ngx': [14, 700, 4],
+  qbittorrent: [9, 640],
+  nextcloud: [4, 820],
+  prometheus: [3.2, 540],
+  sonarr: [2.4, 310],
+  'home-assistant': [2.1, 460],
+  radarr: [1.8, 290],
+  grafana: [1.4, 210],
+  mariadb: [1.1, 380],
+  prowlarr: [0.9, 180],
+  syncthing: [0.8, 130],
+  tautulli: [0.7, 150],
+  pihole: [0.6, 90],
+  overseerr: [0.5, 260],
+  clearview: [0.5, 65],
+  'node-exporter': [0.4, 22],
+  redis: [0.3, 24],
+  vaultwarden: [0.2, 45],
+  watchtower: [0.1, 18],
+};
+
+export function demoStats(): Record<string, ContainerStats> {
+  const t = (Date.now() - started) / 1000;
+  const out: Record<string, ContainerStats> = {};
+  CONTAINERS.forEach((c, i) => {
+    if (c.state === 'exited') return;
+    const [cpu, memMb, limitGb] = LOAD[c.name] ?? [0.2, 40];
+    const wobble = 1 + 0.35 * Math.sin(t / (3 + (i % 5)) + i);
+    const memBytes = Math.round(memMb * 1024 ** 2 * (1 + 0.02 * Math.sin(t / 11 + i)));
+    const memLimitBytes = (limitGb ?? 64) * GB;
+    out[demoId(c.name)] = {
+      cpuPct: Math.round(cpu * wobble * 10) / 10,
+      memBytes,
+      memLimitBytes,
+      memPct: Math.round((memBytes / memLimitBytes) * 1000) / 10,
+    };
+  });
+  return out;
 }
 
 export function demoLinks(): LinkInfo[] {

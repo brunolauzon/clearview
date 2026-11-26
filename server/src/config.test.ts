@@ -28,6 +28,19 @@ describe('loadConfig', () => {
     expect(cfg.overrides.plex?.name).toBe('Plex');
   });
 
+  it('reads categories in file order, with wildcard patterns', () => {
+    const example = path.resolve(import.meta.dirname, '../../config/clearview.example.yaml');
+    const cfg = loadConfig({ CONFIG_PATH: example });
+    expect(cfg.groups.map((g) => g.name)).toEqual(['Infrastructure', 'Media', 'Downloads', 'Home']);
+    expect(cfg.groups.find((g) => g.name === 'Downloads')?.containers).toContain('*arr');
+  });
+
+  it('defaults to no categories and rejects a category that is not a list', () => {
+    expect(loadConfig({ CONFIG_PATH: path.join(dir, 'missing.yaml') }).groups).toEqual([]);
+    const bad = write('badgroups.yaml', 'groups:\n  Media: plex\n');
+    expect(() => loadConfig({ CONFIG_PATH: bad })).toThrow(/groups\.Media/);
+  });
+
   it('needs both Tautulli URL and key, and trims trailing slashes', () => {
     const missing = path.join(dir, 'none.yaml');
     expect(loadConfig({ CONFIG_PATH: missing, TAUTULLI_URL: 'http://t:8181' }).tautulli).toBeNull();

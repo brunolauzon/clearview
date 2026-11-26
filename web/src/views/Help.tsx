@@ -7,7 +7,7 @@ const KEYS: [string, string][] = [
   ['enter, o', 'open the selected WebUI (new tab)'],
   ['/', 'filter rows (esc clears)'],
   [':', 'command prompt (tab completes)'],
-  ['s', 'cycle container sort: name, state, age'],
+  ['s', 'cycle container sort: category, name, state, age, cpu, mem'],
   ['1 – 6', 'home, containers, plex, alerts, disks, links'],
   ['?', 'this help'],
   ['esc', 'clear filter, then back to home'],
@@ -26,7 +26,7 @@ const LABELS: [string, string][] = [
   ['clearview.url', 'override the WebUI address'],
   ['clearview.name', 'display name'],
   ['clearview.hide=true', 'hide this container'],
-  ['clearview.group', 'group name'],
+  ['clearview.group', 'category (beats the groups: list in clearview.yaml)'],
   ['net.unraid.docker.webui', 'read automatically (Unraid sets it)'],
 ];
 

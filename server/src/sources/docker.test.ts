@@ -7,6 +7,8 @@ import {
   collectContainers,
   deriveState,
   DockerClient,
+  globToRegExp,
+  groupFor,
   mapPorts,
   resolveWebUrl,
   toContainerInfo,
@@ -133,7 +135,7 @@ const raw = (over: Partial<RawContainer> = {}): RawContainer => ({
 
 describe('toContainerInfo', () => {
   const now = Date.parse('2026-01-01T12:00:00Z');
-  const opts = { hostIp: null, overrides: {}, hide: [], now };
+  const opts = { hostIp: null, overrides: {}, hide: [], groups: [], now };
 
   it('builds uptime, icon and managed flag', () => {
     const info = toContainerInfo(raw(), '2026-01-01T09:00:00Z', opts)!;
@@ -183,7 +185,7 @@ describe('collectContainers against a fake Docker socket', () => {
   });
 
   it('lists, inspects running containers and sorts by name', async () => {
-    const out = await collectContainers(new DockerClient(sock), { hostIp: '10.0.0.1', overrides: {}, hide: [] });
+    const out = await collectContainers(new DockerClient(sock), { hostIp: '10.0.0.1', overrides: {}, hide: [], groups: [] });
     expect(out.map((c) => c.name)).toEqual(['alpha', 'zeta']);
     expect(out[0]!.uptimeSec).toBeGreaterThanOrEqual(7199);
     expect(out[1]!.uptimeSec).toBeNull();
@@ -192,5 +194,66 @@ describe('collectContainers against a fake Docker socket', () => {
 
   it('reports an unreachable socket clearly', async () => {
     await expect(new DockerClient(path.join(dir, 'missing.sock')).get('/containers/json')).rejects.toThrow(/cannot reach Docker/);
+  });
+});
+
+describe('groupFor', () => {
+  const rules = [
+    { name: 'Infrastructure', containers: ['grafana', 'prom*', 'postgres*'] },
+    { name: 'Media', containers: ['plex', '*arr'] },
+  ];
+
+  it('matches exact names and wildcards, ignoring case', () => {
+    expect(groupFor('grafana', rules)).toBe('Infrastructure');
+    expect(groupFor('Prometheus', rules)).toBe('Infrastructure');
+    expect(groupFor('postgres-14', rules)).toBe('Infrastructure');
+    expect(groupFor('sonarr', rules)).toBe('Media');
+    expect(groupFor('PLEX', rules)).toBe('Media');
+  });
+
+  it('matches the whole name, not a part of it', () => {
+    expect(groupFor('grafana-agent', rules)).toBeNull();
+    expect(groupFor('my-plex', rules)).toBeNull();
+  });
+
+  it('lets the first category in config order win', () => {
+    const overlapping = [
+      { name: 'First', containers: ['*arr'] },
+      { name: 'Second', containers: ['radarr'] },
+    ];
+    expect(groupFor('radarr', overlapping)).toBe('First');
+  });
+
+  it('returns null with no rules or no match', () => {
+    expect(groupFor('anything', [])).toBeNull();
+    expect(groupFor('nginx', rules)).toBeNull();
+  });
+
+  it('treats regex characters as literals', () => {
+    expect(globToRegExp('a.b').test('a.b')).toBe(true);
+    expect(globToRegExp('a.b').test('axb')).toBe(false);
+    expect(globToRegExp('my+app').test('my+app')).toBe(true);
+    expect(globToRegExp('(x)').test('(x)')).toBe(true);
+  });
+});
+
+describe('toContainerInfo category precedence', () => {
+  const opts = {
+    hostIp: null,
+    overrides: {},
+    hide: [],
+    groups: [{ name: 'Media', containers: ['plex'] }],
+    now: Date.parse('2026-01-01T12:00:00Z'),
+  };
+
+  it('uses the groups: lists when nothing more specific is set', () => {
+    expect(toContainerInfo(raw({ Names: ['/plex'], Labels: {} }), null, opts)!.group).toBe('Media');
+    expect(toContainerInfo(raw({ Names: ['/nginx'], Labels: {} }), null, opts)!.group).toBeNull();
+  });
+
+  it('prefers the clearview.group label, then a per-container override', () => {
+    const labelled = raw({ Names: ['/plex'], Labels: { 'clearview.group': 'Family' } });
+    expect(toContainerInfo(labelled, null, opts)!.group).toBe('Family');
+    expect(toContainerInfo(labelled, null, { ...opts, overrides: { plex: { group: 'Pinned' } } })!.group).toBe('Pinned');
   });
 });

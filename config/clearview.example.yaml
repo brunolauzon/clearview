@@ -25,6 +25,16 @@ links:
     group: devices
     check: none
 
+# Categories: sections in the containers table, listed in this order. Each one is a list of
+# container names; `*` is a wildcard (quote it, YAML reads a bare * as an alias). The first
+# match wins. A clearview.group label on a container, or `group:` under overrides below, beats
+# these lists. Containers that match nothing are listed under "other".
+groups:
+  Infrastructure: [grafana, prometheus, node-exporter, cadvisor, watchtower, "postgres*", mariadb, redis, clearview]
+  Media: [plex, tautulli, overseerr, jellyfin]
+  Downloads: ["*arr", qbittorrent, sabnzbd]
+  Home: [home-assistant, esphome, zigbee2mqtt, mosquitto]
+
 containers:
   # Hide by container name. A container can also opt out with the label clearview.hide=true
   hide:

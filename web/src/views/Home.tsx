@@ -2,7 +2,7 @@ import type { AlertInfo, ContainerInfo, HostStats, PlexData, Snapshot } from '@c
 import { Bar } from '../components/Bar';
 import { Box, Note } from '../components/Box';
 import { fmtAgo, fmtBytes, fmtKbps, levelOf } from '../lib/format';
-import type { SortKey } from '../lib/rows';
+import type { SortKey, StatsMap } from '../lib/rows';
 import { SEVERITY_LABEL, SEVERITY_TONE } from './Alerts';
 import { ContainersTable } from './Containers';
 import { inlineState } from './Gate';
@@ -92,11 +92,12 @@ interface HomeProps {
   onSelect: (i: number) => void;
   hostIp: string | null;
   sort: SortKey;
+  stats?: StatsMap;
   filter: string;
   now: number;
 }
 
-export function HomeView({ host, alerts, plex, containers, containersSnap, sel, onSelect, hostIp, sort, filter, now }: HomeProps) {
+export function HomeView({ host, alerts, plex, containers, containersSnap, sel, onSelect, hostIp, sort, stats, filter, now }: HomeProps) {
   const error = containersSnap && !containersSnap.ok ? containersSnap.error : null;
   return (
     <div className="home">
@@ -107,7 +108,7 @@ export function HomeView({ host, alerts, plex, containers, containersSnap, sel, 
       </div>
       <Box title="containers" hint={filter ? `/${filter}` : 'all'} count={containers.length} className="grow">
         {error && <Note tone="err">⚠ {error}</Note>}
-        {!containersSnap ? <Note>connecting…</Note> : <ContainersTable rows={containers} sel={sel} onSelect={onSelect} hostIp={hostIp} sort={sort} />}
+        {!containersSnap ? <Note>connecting…</Note> : <ContainersTable rows={containers} sel={sel} onSelect={onSelect} hostIp={hostIp} sort={sort} stats={stats} />}
       </Box>
     </div>
   );

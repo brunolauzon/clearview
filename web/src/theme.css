@@ -300,6 +300,34 @@ pre.code {
   opacity: 0.5;
 }
 
+/* category heading between runs of rows: NAME 5 ─────────── */
+.group-row {
+  display: flex;
+  align-items: center;
+  gap: 1ch;
+  padding: 0 1ch;
+  margin-top: 0.6em;
+  color: var(--accent);
+  font-weight: 700;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.thead + .group-row {
+  margin-top: 0.2em;
+}
+
+.group-row::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--border);
+}
+
+.group-count {
+  color: var(--dim);
+  font-weight: 400;
+}
+
 .cell {
   overflow: hidden;
   text-overflow: ellipsis;

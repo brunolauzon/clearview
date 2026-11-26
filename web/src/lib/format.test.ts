@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { barParts, fmtAge, fmtAgo, fmtBytes, fmtKbps, levelOf, resolveUrl, shortImage, shortUrl } from './format';
+import { barParts, fmtAge, fmtAgo, fmtBytes, fmtCpu, fmtKbps, levelOf, resolveUrl, shortImage, shortUrl } from './format';
+
+describe('fmtCpu', () => {
+  it('shows one decimal under 10%, whole numbers above, a dash when unknown', () => {
+    expect(fmtCpu(0)).toBe('0.0%');
+    expect(fmtCpu(3.456)).toBe('3.5%');
+    expect(fmtCpu(12.4)).toBe('12%');
+    expect(fmtCpu(250.7)).toBe('251%');
+    expect(fmtCpu(null)).toBe('-');
+    expect(fmtCpu(undefined)).toBe('-');
+  });
+});
 
 describe('fmtAge', () => {
   it('uses the two largest units', () => {

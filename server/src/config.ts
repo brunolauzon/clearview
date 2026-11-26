@@ -25,6 +25,8 @@ const overrideSchema = z.object({
 const fileSchema = z.object({
   title: z.string().optional(),
   links: z.array(linkSchema).default([]),
+  // category name -> container names (`*` wildcard). Key order is the display order.
+  groups: z.record(z.string(), z.array(z.string())).default({}),
   containers: z
     .object({
       hide: z.array(z.string()).default([]),
@@ -36,6 +38,12 @@ const fileSchema = z.object({
 
 export type LinkConfig = z.infer<typeof linkSchema>;
 export type ContainerOverride = z.infer<typeof overrideSchema>;
+
+/** A container category and the name patterns that belong to it. */
+export interface GroupRule {
+  name: string;
+  containers: string[];
+}
 
 export interface AppConfig {
   port: number;
@@ -52,6 +60,8 @@ export interface AppConfig {
   tautulli: { url: string; apiKey: string; publicUrl: string | null } | null;
   grafana: { url: string; token: string | null; publicUrl: string | null } | null;
   links: LinkConfig[];
+  /** categories in display order */
+  groups: GroupRule[];
   hide: string[];
   overrides: Record<string, ContainerOverride>;
 }
@@ -111,6 +121,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
         }
       : null,
     links: file.links,
+    groups: Object.entries(file.groups).map(([name, containers]) => ({ name, containers })),
     hide: file.containers.hide,
     overrides: file.containers.overrides,
   };

@@ -2,7 +2,8 @@
 
 A terminal-style dashboard for an Unraid homelab. Looks like k9s, runs in a browser tab.
 
-- **Docker autodiscovery**: every container, its state and health, and a click to open its WebUI
+- **Docker autodiscovery**: every container, its state and health, live CPU and memory use, and a click to open its WebUI
+- **Categories**: group containers into sections like Infrastructure and Media
 - **Host stats**: CPU, memory, and per-disk usage for the array, cache and pools
 - **Alerts**: firing alerts from Grafana
 - **Plex**: live streams, transcodes, bandwidth, libraries, history and top stats (through Tautulli)
@@ -61,6 +62,30 @@ Resolved in this order:
 
 Container labels you can add: `clearview.name`, `clearview.url`, `clearview.icon`, `clearview.group`, `clearview.hide=true`.
 
+## Categories
+
+Containers can be grouped into sections (Infrastructure, Media, ...). The containers table shows a heading per category, in the order you list them. Define them in `clearview.yaml`:
+
+```yaml
+groups:
+  Infrastructure: [grafana, prometheus, node-exporter, watchtower, "postgres*", mariadb, redis]
+  Media: [plex, tautulli, overseerr]
+  Downloads: ["*arr", qbittorrent]
+  Home: [home-assistant]
+```
+
+- Each entry is a container name. `*` is a wildcard, and matching ignores case. Quote any entry that starts with `*`, because YAML reads a bare `*` as an alias.
+- The first category that matches wins, so list specific ones first.
+- Containers that match nothing appear under **other**.
+- A container's own `clearview.group` label beats these lists, and a `group:` under `containers.overrides` beats both. On Unraid, add the label from the container's edit page with Add another Path, Port, Variable, Label or Device.
+- `/media` in the filter matches a category name, `s` cycles the sort (category, name, state, age, cpu, mem), and the group column shows the category when you sort by something else.
+
+## CPU and memory per container
+
+Each running container shows its CPU and memory use, measured the same way as `docker stats`. CPU is a share of one core, so a container using two cores shows about 200%. Memory leaves out reclaimable page cache. Memory turns amber at 70% and red at 90% of the container's limit (or of the server's RAM if it has none). Sort with `s` to find what is using the most.
+
+The numbers refresh every 5 seconds while a browser tab is open, using one lightweight Docker call per running container.
+
 ## Configuration
 
 | Variable | Default | Purpose |
@@ -89,7 +114,7 @@ A source with no config shows setup instructions in its own view. A failing sour
 | `/` | filter (esc clears) |
 | `:` | command: `home` `containers` `plex` `alerts` `disks` `links` `help` (tab completes) |
 | `1`..`6` | jump to a view |
-| `s` | cycle container sort: name, state, age |
+| `s` | cycle container sort: category, name, state, age, cpu, mem |
 | `?` | help |
 
 ## Development
@@ -116,4 +141,4 @@ Layout: `shared/` API types, `server/src/sources/` one file per data source, `we
 
 ## Not built yet
 
-Container start/stop and logs, per-container CPU and memory, disk temperatures and SMART, Unraid array state, pending (not yet firing) Grafana alerts.
+Container start/stop and logs, disk temperatures and SMART, Unraid array state, pending (not yet firing) Grafana alerts.

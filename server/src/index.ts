@@ -1,15 +1,16 @@
 import fs from 'node:fs';
 import Fastify, { LogController } from 'fastify';
 import fastifyStatic from '@fastify/static';
-import type { AlertInfo, ContainerInfo, HostStats, LinkInfo, Meta, PlexData } from '@clearview/shared';
+import type { AlertInfo, ContainerInfo, ContainerStats, HostStats, LinkInfo, Meta, PlexData } from '@clearview/shared';
 import { loadConfig, VERSION } from './config';
 import { Hub, Topic } from './hub';
 import { collectContainers, DockerClient } from './sources/docker';
 import { HostCollector } from './sources/host';
+import { StatsCollector } from './sources/stats';
 import { fetchAlerts } from './sources/grafana';
 import { TautulliSource } from './sources/tautulli';
 import { LinkProber } from './sources/links';
-import { demoAlerts, demoContainers, demoHost, demoLinks, demoPlex } from './sources/demo';
+import { DEMO_GROUPS, demoAlerts, demoContainers, demoHost, demoLinks, demoPlex, demoStats } from './sources/demo';
 import { errMsg } from './util';
 
 let cfg: ReturnType<typeof loadConfig>;
@@ -32,6 +33,7 @@ const hostCollector = new HostCollector(cfg);
 const tautulli = cfg.tautulli ? new TautulliSource(cfg.tautulli) : null;
 const grafana = cfg.grafana;
 const prober = new LinkProber(cfg.links);
+const stats = new StatsCollector(docker);
 
 const topics = {
   host: new Topic<HostStats>('host', hub, 2_000, cfg.demo ? async () => demoHost() : () => hostCollector.collect()),
@@ -41,8 +43,9 @@ const topics = {
     10_000,
     cfg.demo
       ? async () => demoContainers()
-      : () => collectContainers(docker, { hostIp: cfg.hostIp, overrides: cfg.overrides, hide: cfg.hide }),
+      : () => collectContainers(docker, { hostIp: cfg.hostIp, overrides: cfg.overrides, hide: cfg.hide, groups: cfg.groups }),
   ),
+  stats: new Topic<Record<string, ContainerStats>>('stats', hub, 5_000, cfg.demo ? async () => demoStats() : () => stats.collect()),
   plex: new Topic<PlexData>('plex', hub, 5_000, cfg.demo ? async () => demoPlex() : tautulli ? () => tautulli.collect() : null),
   alerts: new Topic<AlertInfo[]>('alerts', hub, 30_000, cfg.demo ? async () => demoAlerts() : grafana ? () => fetchAlerts(grafana) : null),
   links: new Topic<LinkInfo[]>(
@@ -65,6 +68,7 @@ const meta: Meta = {
   title: cfg.title,
   demo: cfg.demo,
   hostIp: cfg.hostIp,
+  groups: cfg.demo ? DEMO_GROUPS : cfg.groups.map((g) => g.name),
   tautulliUrl: cfg.tautulli ? (cfg.tautulli.publicUrl ?? cfg.tautulli.url) : cfg.demo ? 'http://[IP]:8181' : null,
   grafanaUrl: cfg.grafana ? (cfg.grafana.publicUrl ?? cfg.grafana.url) : cfg.demo ? 'http://[IP]:3000' : null,
 };
