@@ -47,6 +47,11 @@ export class LinkProber {
 
   constructor(private links: LinkConfig[]) {}
 
+  /** Replace the list after a config change. Results are kept per address, so unchanged links keep their status. */
+  setLinks(links: LinkConfig[]): void {
+    this.links = links;
+  }
+
   async probeAll(): Promise<void> {
     await mapLimit(this.links, 8, async (l) => {
       if (l.check === 'none') return;

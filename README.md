@@ -8,6 +8,7 @@ A terminal-style dashboard for an Unraid homelab. Looks like k9s, runs in a brow
 - **Alerts**: firing alerts from Grafana
 - **Plex**: live streams, transcodes, bandwidth, libraries, history and top stats (through Tautulli)
 - **Links**: other devices on your network, with an up/down dot
+- **Edit settings in the UI**: add links, make categories, rename or hide containers. No config file to touch
 - **Keyboard first**: `j/k`, `/` filter, `:` commands with tab completion, `?` help. Mouse and phones work too.
 
 ## Quick start (Unraid)
@@ -22,7 +23,7 @@ A terminal-style dashboard for an Unraid homelab. Looks like k9s, runs in a brow
 
 4. Open `http://<server>:7878`.
 
-Optional: copy `config/clearview.example.yaml` to `/mnt/user/appdata/clearview/clearview.yaml` to add links and hide containers.
+Settings you change in the UI are saved to `/mnt/user/appdata/clearview/clearview.yaml`. That folder must be mounted read-write, which the compose file and the Unraid template already do.
 
 ## Install from the Unraid UI (template)
 
@@ -49,6 +50,25 @@ Fill in the server name and, if you want them, the Tautulli and Grafana fields. 
 
 Release tags (`git tag v0.1.0 && git push --tags`) also publish `:0.1.0` and `:0.1`. Building on your Mac gives an arm64 image that will not run on an x86 server, so let the workflow build it, or use `docker buildx build --platform linux/amd64`.
 
+## Changing settings in the UI
+
+Press `7` (or type `:config`) to open the config view. It has four sections, switched with `tab`:
+
+| Section | What you can do |
+|---|---|
+| **links** | add, edit and delete devices on your network |
+| **categories** | add, edit, delete and reorder categories; pick containers from a list or use `*` wildcards |
+| **containers** | containers you have customised: shown-as name, WebUI address, category, hidden |
+| **yaml** | the whole file as text, with validation, for anything the forms do not cover |
+
+Keys: `a` add, `e` or `enter` edit, `d` twice to delete, `K` and `J` move a category up and down. On the containers page, `e` edits the selected container directly.
+
+Changes apply immediately, with no restart, and every open browser tab updates. Each save from a form rewrites the file and keeps the previous version next to it as `clearview.yaml.bak`. Comments you wrote by hand survive only in the **yaml** section, which saves your text exactly as typed.
+
+If you edit the file by hand, clearview notices within a few seconds. If you save from the UI while the file has changed underneath you, the save is refused rather than overwriting your edit. A file with a mistake in it is ignored, the last good settings stay in use, and the config view says what is wrong.
+
+Editing needs the config folder mounted read-write. If it is not writable the view is read-only and says why. If the folder is not a mounted volume at all, edits work but are lost when the container is recreated, and the view warns you. Set `CONFIG_READONLY=1` to turn editing off completely.
+
 ## How containers get their WebUI link
 
 Resolved in this order:
@@ -64,7 +84,7 @@ Container labels you can add: `clearview.name`, `clearview.url`, `clearview.icon
 
 ## Categories
 
-Containers can be grouped into sections (Infrastructure, Media, ...). The containers table shows a heading per category, in the order you list them. Define them in `clearview.yaml`:
+Containers can be grouped into sections (Infrastructure, Media, ...). The containers table shows a heading per category, in the order you list them. Make them in the config view (categories), or write them in `clearview.yaml`:
 
 ```yaml
 groups:
@@ -95,7 +115,8 @@ The numbers refresh every 5 seconds while a browser tab is open, using one light
 | `HOST_IP` | browser address | Fills `[IP]` in WebUI links |
 | `DOCKER_HOST` | `/var/run/docker.sock` | Socket path or `tcp://host:2375` (socket proxy) |
 | `DISKS_ROOT` | `/host/mnt` | Folder whose subfolders are shown as disks |
-| `CONFIG_PATH` | `/config/clearview.yaml` | Optional YAML file (links, hide, overrides) |
+| `CONFIG_PATH` | `/config/clearview.yaml` | Where UI edits are saved (links, categories, container settings) |
+| `CONFIG_READONLY` | unset | `1` turns off editing in the UI |
 | `TAUTULLI_URL`, `TAUTULLI_API_KEY` | unset | Enables Plex. Key: Tautulli, Settings, Web Interface |
 | `GRAFANA_URL`, `GRAFANA_TOKEN` | unset | Enables alerts. Token: Grafana, Service accounts, Viewer role |
 | `GRAFANA_PUBLIC_URL`, `TAUTULLI_PUBLIC_URL` | unset | Browser-reachable address, if different from the one the server uses |
@@ -113,7 +134,8 @@ A source with no config shows setup instructions in its own view. A failing sour
 | `enter` `o` or click | open WebUI in a new tab |
 | `/` | filter (esc clears) |
 | `:` | command: `home` `containers` `plex` `alerts` `disks` `links` `help` (tab completes) |
-| `1`..`6` | jump to a view |
+| `e` | edit the selected container (name, address, category, hide) |
+| `1`..`7` | jump to a view (7 is the config editor) |
 | `s` | cycle container sort: category, name, state, age, cpu, mem |
 | `?` | help |
 
@@ -135,7 +157,7 @@ Layout: `shared/` API types, `server/src/sources/` one file per data source, `we
 
 ## Security
 
-- Clearview has no login. Keep it on your LAN, or put it behind your reverse proxy's auth.
+- Clearview has no login. Keep it on your LAN, or put it behind your reverse proxy's auth. Anyone who can open it can also change its settings (links, categories, hidden containers) unless you set `CONFIG_READONLY=1`. Writes are refused unless they come from the page itself, so another website cannot change them through your browser.
 - Mounting `docker.sock` read-only does not make the Docker API read-only: anything that can reach the socket can control Docker. Clearview only lists and inspects containers. To remove that exposure, run [`tecnativa/docker-socket-proxy`](https://github.com/Tecnativa/docker-socket-proxy) with only `CONTAINERS=1` (and `EVENTS=1`) enabled, and set `DOCKER_HOST=tcp://socket-proxy:2375` instead of mounting the socket.
 - API keys and tokens stay on the server. They are never sent to the browser and are stripped from error messages.
 

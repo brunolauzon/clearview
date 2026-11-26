@@ -1,9 +1,20 @@
 import { useEffect, useState } from 'react';
-import type { AlertInfo, ContainerInfo, ContainerStats, HostStats, LinkInfo, Meta, PlexData, Snapshot } from '@clearview/shared';
+import type {
+  AlertInfo,
+  ConfigState,
+  ContainerInfo,
+  ContainerStats,
+  HostStats,
+  LinkInfo,
+  Meta,
+  PlexData,
+  Snapshot,
+} from '@clearview/shared';
 
 export interface StreamState {
   connected: boolean;
   meta: Meta | null;
+  config: ConfigState | null;
   host: Snapshot<HostStats> | null;
   containers: Snapshot<ContainerInfo[]> | null;
   stats: Snapshot<Record<string, ContainerStats>> | null;
@@ -12,11 +23,12 @@ export interface StreamState {
   links: Snapshot<LinkInfo[]> | null;
 }
 
-const TOPICS = ['meta', 'host', 'containers', 'stats', 'plex', 'alerts', 'links'] as const;
+const TOPICS = ['meta', 'config', 'host', 'containers', 'stats', 'plex', 'alerts', 'links'] as const;
 
 const initial: StreamState = {
   connected: false,
   meta: null,
+  config: null,
   host: null,
   containers: null,
   stats: null,

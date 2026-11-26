@@ -1,40 +1,53 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { parse as parseYaml } from 'yaml';
+import type { ConfigIssue, FileConfig } from '@clearview/shared';
+import { Document, parse as parseYaml } from 'yaml';
 import { z } from 'zod';
 
 export const VERSION = '0.1.0';
 
-const linkSchema = z.object({
-  name: z.string().min(1),
-  url: z.string().url(),
-  group: z.string().default('links'),
-  icon: z.string().optional(),
-  description: z.string().optional(),
-  check: z.enum(['http', 'tcp', 'none']).default('http'),
-});
+// ---------- the config file (clearview.yaml) ----------
+// Strict on purpose: a typo like `link:` should be an error, not a silently ignored section.
 
-const overrideSchema = z.object({
-  name: z.string().optional(),
-  url: z.string().optional(),
-  icon: z.string().optional(),
-  group: z.string().optional(),
-  hide: z.boolean().optional(),
-});
+const text = z.string().trim().min(1);
 
-const fileSchema = z.object({
-  title: z.string().optional(),
-  links: z.array(linkSchema).default([]),
-  // category name -> container names (`*` wildcard). Key order is the display order.
-  groups: z.record(z.string(), z.array(z.string())).default({}),
-  containers: z
-    .object({
-      hide: z.array(z.string()).default([]),
-      overrides: z.record(z.string(), overrideSchema).default({}),
-    })
-    .default({}),
-  disks: z.array(z.object({ name: z.string(), path: z.string() })).optional(),
-});
+const linkSchema = z
+  .object({
+    name: text,
+    url: z.string().trim().url(),
+    group: text.default('links'),
+    icon: z.string().optional(),
+    description: z.string().optional(),
+    check: z.enum(['http', 'tcp', 'none']).default('http'),
+  })
+  .strict();
+
+const overrideSchema = z
+  .object({
+    name: z.string().optional(),
+    url: z.string().optional(),
+    icon: z.string().optional(),
+    group: z.string().optional(),
+    hide: z.boolean().optional(),
+  })
+  .strict();
+
+const fileSchema = z
+  .object({
+    title: z.string().optional(),
+    links: z.array(linkSchema).default([]),
+    // category name -> container names (`*` wildcard). Key order is the display order.
+    groups: z.record(z.string(), z.array(text)).default({}),
+    containers: z
+      .object({
+        hide: z.array(text).default([]),
+        overrides: z.record(z.string(), overrideSchema).default({}),
+      })
+      .strict()
+      .default({}),
+    disks: z.array(z.object({ name: text, path: text }).strict()).optional(),
+  })
+  .strict();
 
 export type LinkConfig = z.infer<typeof linkSchema>;
 export type ContainerOverride = z.infer<typeof overrideSchema>;
@@ -44,6 +57,133 @@ export interface GroupRule {
   name: string;
   containers: string[];
 }
+
+export function emptyFileConfig(): FileConfig {
+  return { links: [], groups: [], hide: [], overrides: {} };
+}
+
+function fromParsed(p: z.infer<typeof fileSchema>): FileConfig {
+  return {
+    ...(p.title ? { title: p.title } : {}),
+    links: p.links,
+    groups: Object.entries(p.groups).map(([name, containers]) => ({ name, containers })),
+    hide: p.containers.hide,
+    overrides: p.containers.overrides,
+    ...(p.disks ? { disks: p.disks } : {}),
+  };
+}
+
+export type ParseResult = { ok: true; file: FileConfig } | { ok: false; issues: ConfigIssue[] };
+
+function validateShape(data: unknown): ParseResult {
+  const parsed = fileSchema.safeParse(data);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      issues: parsed.error.issues.map((i) => ({ path: i.path.join('.') || '(root)', message: i.message })),
+    };
+  }
+  return { ok: true, file: fromParsed(parsed.data) };
+}
+
+/** Parse and validate the text of a clearview.yaml. Empty text is a valid, empty config. */
+export function parseFileText(source: string): ParseResult {
+  let data: unknown;
+  try {
+    data = parseYaml(source) ?? {};
+  } catch (err) {
+    return { ok: false, issues: [{ path: '(yaml)', message: err instanceof Error ? err.message : String(err) }] };
+  }
+  return validateShape(data);
+}
+
+/**
+ * Validate a config coming from the UI (untrusted JSON). Categories arrive as an ordered array and
+ * are turned into the file's map form so the same schema checks both paths.
+ */
+export function validateFileConfig(input: unknown): ParseResult {
+  if (typeof input !== 'object' || input === null || Array.isArray(input)) {
+    return { ok: false, issues: [{ path: '(root)', message: 'config must be an object' }] };
+  }
+  const c = input as Record<string, unknown>;
+  const issues: ConfigIssue[] = [];
+
+  const groups = new Map<string, unknown>();
+  if (c.groups !== undefined) {
+    if (!Array.isArray(c.groups)) {
+      issues.push({ path: 'groups', message: 'categories must be a list' });
+    } else {
+      c.groups.forEach((g: unknown, i) => {
+        const entry = (g ?? {}) as { name?: unknown; containers?: unknown };
+        const name = typeof entry.name === 'string' ? entry.name.trim() : '';
+        if (!name) issues.push({ path: `groups.${i}.name`, message: 'category name is required' });
+        else if (groups.has(name)) issues.push({ path: `groups.${i}.name`, message: `duplicate category "${name}"` });
+        else groups.set(name, entry.containers ?? []);
+      });
+    }
+  }
+  if (issues.length > 0) return { ok: false, issues };
+
+  return validateShape({
+    title: c.title,
+    links: c.links,
+    groups: Object.fromEntries(groups),
+    containers: { hide: c.hide, overrides: c.overrides },
+    disks: c.disks,
+  });
+}
+
+const HEADER = [
+  ' Managed by the clearview UI (open it with :config).',
+  ' Comments added by hand are lost the next time you save from the UI;',
+  ' the previous version is kept next to this file as clearview.yaml.bak.',
+].join('\n');
+
+const present = (s: string | undefined): string | undefined => (s && s.trim() ? s : undefined);
+
+/** Serialise a config to YAML text, omitting empty sections and default values. */
+export function toYamlText(file: FileConfig): string {
+  const body: Record<string, unknown> = {};
+  if (file.title) body.title = file.title;
+  if (file.groups.length > 0) {
+    body.groups = Object.fromEntries(file.groups.map((g) => [g.name, g.containers]));
+  }
+  if (file.links.length > 0) {
+    body.links = file.links.map((l) => ({
+      name: l.name,
+      url: l.url,
+      group: l.group,
+      ...(present(l.description) ? { description: l.description } : {}),
+      ...(present(l.icon) ? { icon: l.icon } : {}),
+      ...(l.check !== 'http' ? { check: l.check } : {}),
+    }));
+  }
+  const containers: Record<string, unknown> = {};
+  if (file.hide.length > 0) containers.hide = file.hide;
+  const overrides = Object.fromEntries(
+    Object.entries(file.overrides)
+      .map(([name, o]) => [
+        name,
+        {
+          ...(present(o.name) ? { name: o.name } : {}),
+          ...(present(o.url) ? { url: o.url } : {}),
+          ...(present(o.icon) ? { icon: o.icon } : {}),
+          ...(present(o.group) ? { group: o.group } : {}),
+          ...(o.hide ? { hide: true } : {}),
+        },
+      ] as const)
+      .filter(([, o]) => Object.keys(o).length > 0),
+  );
+  if (Object.keys(overrides).length > 0) containers.overrides = overrides;
+  if (Object.keys(containers).length > 0) body.containers = containers;
+  if (file.disks && file.disks.length > 0) body.disks = file.disks;
+
+  const doc = new Document(body);
+  doc.commentBefore = HEADER;
+  return doc.toString({ lineWidth: 0 });
+}
+
+// ---------- the running config (environment + file) ----------
 
 export interface AppConfig {
   port: number;
@@ -64,6 +204,19 @@ export interface AppConfig {
   groups: GroupRule[];
   hide: string[];
   overrides: Record<string, ContainerOverride>;
+  /** where the editable config lives, and whether the UI may change it */
+  configPath: string;
+  configReadOnly: boolean;
+}
+
+/** Copy the editable part of the config into the running config. Everything reads these fields live. */
+export function applyFileConfig(cfg: AppConfig, file: FileConfig): void {
+  cfg.title = file.title ?? null;
+  cfg.links = file.links;
+  cfg.groups = file.groups;
+  cfg.hide = file.hide;
+  cfg.overrides = file.overrides;
+  cfg.disks = file.disks ?? null;
 }
 
 function clean(v: string | undefined): string | null {
@@ -77,33 +230,29 @@ function stripSlash(u: string): string {
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const configPath = clean(env.CONFIG_PATH) ?? '/config/clearview.yaml';
-  let file: z.infer<typeof fileSchema>;
+  let file = emptyFileConfig();
   if (fs.existsSync(configPath)) {
-    const raw = fs.readFileSync(configPath, 'utf8');
-    const parsed = fileSchema.safeParse(parseYaml(raw) ?? {});
-    if (!parsed.success) {
-      const issues = parsed.error.issues.map((i) => `  ${i.path.join('.') || '(root)'}: ${i.message}`).join('\n');
+    const result = parseFileText(fs.readFileSync(configPath, 'utf8'));
+    if (!result.ok) {
+      const issues = result.issues.map((i) => `  ${i.path}: ${i.message}`).join('\n');
       throw new Error(`Invalid config ${configPath}:\n${issues}`);
     }
-    file = parsed.data;
-  } else {
-    file = fileSchema.parse({});
+    file = result.file;
   }
 
   const tautulliUrl = clean(env.TAUTULLI_URL);
   const tautulliKey = clean(env.TAUTULLI_API_KEY);
   const grafanaUrl = clean(env.GRAFANA_URL);
-  const demo = env.CLEARVIEW_DEMO === '1' || env.CLEARVIEW_DEMO === 'true';
 
-  return {
+  const cfg: AppConfig = {
     port: Number(env.PORT) || 7878,
     hostIp: clean(env.HOST_IP),
     hostName: clean(env.HOST_NAME),
-    title: file.title ?? null,
-    demo,
+    title: null,
+    demo: env.CLEARVIEW_DEMO === '1' || env.CLEARVIEW_DEMO === 'true',
     dockerHost: clean(env.DOCKER_HOST) ?? '/var/run/docker.sock',
     disksRoot: clean(env.DISKS_ROOT) ?? '/host/mnt',
-    disks: file.disks ?? null,
+    disks: null,
     webDir: clean(env.WEB_DIR) ?? path.resolve(import.meta.dirname, '../../web/dist'),
     tautulli:
       tautulliUrl && tautulliKey
@@ -120,9 +269,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
           publicUrl: clean(env.GRAFANA_PUBLIC_URL) ? stripSlash(clean(env.GRAFANA_PUBLIC_URL)!) : null,
         }
       : null,
-    links: file.links,
-    groups: Object.entries(file.groups).map(([name, containers]) => ({ name, containers })),
-    hide: file.containers.hide,
-    overrides: file.containers.overrides,
+    links: [],
+    groups: [],
+    hide: [],
+    overrides: {},
+    configPath,
+    configReadOnly: env.CONFIG_READONLY === '1' || env.CONFIG_READONLY === 'true',
   };
+  applyFileConfig(cfg, file);
+  return cfg;
 }

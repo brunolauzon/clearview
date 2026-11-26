@@ -62,17 +62,28 @@ export class Topic<T> {
   ) {}
 
   start(): void {
-    if (!this.collect) {
-      this.last = { configured: false, ok: true, error: null, at: Date.now(), data: null };
-      this.hub.publish(this.name, this.last);
-      return;
-    }
     setInterval(() => {
-      if (this.hub.size > 0) void this.refresh();
+      if (this.collect && this.hub.size > 0) void this.refresh();
     }, this.intervalMs).unref();
     this.hub.onConnect(() => {
-      if (!this.last || Date.now() - this.last.at > this.intervalMs) void this.refresh();
+      if (this.collect && (!this.last || Date.now() - this.last.at > this.intervalMs)) void this.refresh();
     });
+    if (!this.collect) this.publishUnconfigured();
+  }
+
+  private publishUnconfigured(): void {
+    this.last = { configured: false, ok: true, error: null, at: Date.now(), data: null };
+    this.hub.publish(this.name, this.last);
+  }
+
+  /** Swap the data source at runtime, e.g. when the user adds the first link or removes the last one. */
+  reconfigure(collect: (() => Promise<T>) | null): void {
+    this.collect = collect;
+    if (!collect) return this.publishUnconfigured();
+    // if a run with the old source is in flight, let it finish, then collect from the new one
+    const inFlight = this.running;
+    if (inFlight) void inFlight.then(() => this.refresh());
+    else void this.refresh();
   }
 
   refresh(): Promise<void> {

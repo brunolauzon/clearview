@@ -4,6 +4,7 @@ import { filterBy, sortContainers, stateLevel } from './rows';
 
 const c = (name: string, state: ContainerInfo['state'], uptimeSec: number | null): ContainerInfo => ({
   id: name,
+  rawName: name,
   name,
   image: `img/${name}`,
   state,

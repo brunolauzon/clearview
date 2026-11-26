@@ -3,10 +3,13 @@ import type {
   ContainerInfo,
   ContainerStats,
   ContainerState,
+  FileConfig,
   HostStats,
   LinkInfo,
   PlexData,
 } from '@clearview/shared';
+import type { ContainerOverride, GroupRule, LinkConfig } from '../config';
+import { groupFor } from './docker';
 
 // Fixtures for CLEARVIEW_DEMO=1: lets the UI be developed and screenshotted without Unraid.
 
@@ -57,30 +60,27 @@ interface DemoContainer {
   upDays: number;
 }
 
-// Category display order, and which category each demo container is in (unlisted ones show under "other").
-export const DEMO_GROUPS = ['Infrastructure', 'Media', 'Downloads', 'Home', 'Apps'];
-
-const GROUP_OF: Record<string, string> = {
-  grafana: 'Infrastructure',
-  prometheus: 'Infrastructure',
-  'node-exporter': 'Infrastructure',
-  pihole: 'Infrastructure',
-  mariadb: 'Infrastructure',
-  redis: 'Infrastructure',
-  watchtower: 'Infrastructure',
-  clearview: 'Infrastructure',
-  plex: 'Media',
-  tautulli: 'Media',
-  overseerr: 'Media',
-  sonarr: 'Downloads',
-  radarr: 'Downloads',
-  prowlarr: 'Downloads',
-  qbittorrent: 'Downloads',
-  'home-assistant': 'Home',
-  nextcloud: 'Apps',
-  immich: 'Apps',
-  'paperless-ngx': 'Apps',
-  vaultwarden: 'Apps',
+// The config demo mode starts with. It is editable in the UI like a real clearview.yaml, but lives in memory only.
+export const DEMO_FILE_CONFIG: FileConfig = {
+  title: 'tower',
+  groups: [
+    { name: 'Infrastructure', containers: ['grafana', 'prometheus', 'node-exporter', 'pihole', 'mariadb', 'redis', 'watchtower', 'clearview'] },
+    { name: 'Media', containers: ['plex', 'tautulli', 'overseerr'] },
+    { name: 'Downloads', containers: ['sonarr', 'radarr', 'prowlarr', 'qbittorrent'] },
+    { name: 'Home', containers: ['home-assistant'] },
+    { name: 'Apps', containers: ['nextcloud', 'immich', 'paperless-ngx', 'vaultwarden'] },
+  ],
+  links: [
+    { name: 'UniFi Controller', url: 'https://192.168.1.2:8443', group: 'network', check: 'http', description: 'Dream Machine' },
+    { name: 'Router', url: 'http://192.168.1.1', group: 'network', check: 'http', description: 'Gateway' },
+    { name: 'Pi-hole (backup)', url: 'http://192.168.1.53/admin', group: 'network', check: 'http', description: 'Raspberry Pi 4' },
+    { name: 'Proxmox', url: 'https://192.168.1.20:8006', group: 'compute', check: 'http', description: 'pve1' },
+    { name: 'Synology NAS', url: 'http://192.168.1.30:5000', group: 'storage', check: 'http', description: 'Offsite backup target' },
+    { name: 'Printer', url: 'http://192.168.1.60', group: 'devices', check: 'http' },
+    { name: 'Hue Bridge', url: 'http://192.168.1.70', group: 'devices', check: 'none' },
+  ],
+  hide: [],
+  overrides: {},
 };
 
 const CONTAINERS: DemoContainer[] = [
@@ -108,26 +108,34 @@ const CONTAINERS: DemoContainer[] = [
   { name: 'clearview', image: 'clearview:latest', state: 'running', port: 7878, upDays: 0 },
 ];
 
-export function demoContainers(): ContainerInfo[] {
+export function demoContainers(opts: {
+  hide: string[];
+  overrides: Record<string, ContainerOverride>;
+  groups: GroupRule[];
+}): ContainerInfo[] {
   const now = Date.now();
-  return CONTAINERS.map((c) => {
-    const alive = c.state !== 'exited';
-    const upSec = alive ? Math.max(95, c.upDays * 86400 + 3600) : null;
-    return {
-      id: demoId(c.name),
-      name: c.name,
-      image: c.image,
-      state: c.state,
-      statusText: alive ? `Up ${c.upDays} days` : 'Exited (0) 2 days ago',
-      startedAt: upSec ? new Date(now - upSec * 1000).toISOString() : null,
-      uptimeSec: upSec,
-      ports: c.port ? [{ private: c.port, public: c.port, proto: 'tcp' }] : [],
-      url: c.port ? `http://[IP]:${c.port}/` : null,
-      icon: null,
-      group: GROUP_OF[c.name] ?? null,
-      managed: true,
-    };
-  }).sort((a, b) => a.name.localeCompare(b.name));
+  return CONTAINERS.filter((c) => !opts.hide.includes(c.name) && !opts.overrides[c.name]?.hide)
+    .map((c) => {
+      const override = opts.overrides[c.name] ?? {};
+      const alive = c.state !== 'exited';
+      const upSec = alive ? Math.max(95, c.upDays * 86400 + 3600) : null;
+      return {
+        id: demoId(c.name),
+        rawName: c.name,
+        name: override.name || c.name,
+        image: c.image,
+        state: c.state,
+        statusText: alive ? `Up ${c.upDays} days` : 'Exited (0) 2 days ago',
+        startedAt: upSec ? new Date(now - upSec * 1000).toISOString() : null,
+        uptimeSec: upSec,
+        ports: c.port ? [{ private: c.port, public: c.port, proto: 'tcp' as const }] : [],
+        url: override.url || (c.port ? `http://[IP]:${c.port}/` : null),
+        icon: null,
+        group: override.group || groupFor(c.name, opts.groups),
+        managed: true,
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export function demoAlerts(): AlertInfo[] {
@@ -281,24 +289,23 @@ export function demoStats(): Record<string, ContainerStats> {
   return out;
 }
 
-export function demoLinks(): LinkInfo[] {
-  const l = (name: string, url: string, group: string, up: boolean | null, ms: number | null, description: string | null = null): LinkInfo => ({
-    name,
-    url,
-    group,
-    icon: null,
-    description,
-    check: up === null ? 'none' : 'http',
-    up,
-    latencyMs: ms,
-  });
-  return [
-    l('UniFi Controller', 'https://192.168.1.2:8443', 'network', true, 18, 'Dream Machine'),
-    l('Router', 'http://192.168.1.1', 'network', true, 3, 'Gateway'),
-    l('Pi-hole (backup)', 'http://192.168.1.53/admin', 'network', true, 9, 'Raspberry Pi 4'),
-    l('Proxmox', 'https://192.168.1.20:8006', 'compute', true, 41, 'pve1'),
-    l('Synology NAS', 'http://192.168.1.30:5000', 'storage', false, null, 'Offsite backup target'),
-    l('Printer', 'http://192.168.1.60', 'devices', true, 112),
-    l('Hue Bridge', 'http://192.168.1.70', 'devices', null, null),
-  ];
+const DEMO_DOWN = new Set(['Synology NAS']);
+
+export function demoLinks(links: LinkConfig[]): LinkInfo[] {
+  const hash = (text: string) => [...text].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7);
+  return links
+    .map((l) => {
+      const up = l.check === 'none' ? null : !DEMO_DOWN.has(l.name);
+      return {
+        name: l.name,
+        url: l.url,
+        group: l.group,
+        icon: l.icon ?? null,
+        description: l.description ?? null,
+        check: l.check,
+        up,
+        latencyMs: up ? 3 + (hash(l.name) % 110) : null,
+      };
+    })
+    .sort((a, b) => a.group.localeCompare(b.group) || a.name.localeCompare(b.name));
 }

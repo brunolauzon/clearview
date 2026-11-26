@@ -1,14 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DiskInfo, LinkInfo, PlexStream } from '@clearview/shared';
+import { ContainerForm, GroupForm, LinkForm } from './components/ConfigForms';
 import { Crumbs } from './components/Crumbs';
 import { Header } from './components/Header';
 import { PromptBar, type PromptMode } from './components/PromptBar';
 import { useNow } from './hooks/useBucket';
 import { useStream } from './hooks/useStream';
+import { saveConfig, saveYaml, type SaveFn } from './lib/api';
 import { parseCommand, VIEWS, viewFromHash, type ViewId } from './lib/commands';
+import type { Editor } from './lib/editor';
 import { resolveUrl } from './lib/format';
 import { containerSearchText, filterBy, SORT_KEYS, sortContainers, type SortKey } from './lib/rows';
 import { AlertsView } from './views/Alerts';
+import { ConfigView } from './views/Config';
 import { ContainersView } from './views/Containers';
 import { DisksView } from './views/Disks';
 import { HelpView } from './views/Help';
@@ -27,6 +31,7 @@ const LIST_OF: Record<ViewId, ListKind> = {
   alerts: 'alerts',
   disks: 'disks',
   links: 'links',
+  config: null, // the config view keeps its own cursor
   help: null,
 };
 
@@ -41,6 +46,7 @@ export default function App() {
   const [sort, setSort] = useState<SortKey>('group');
   const [flash, setFlash] = useState<string | null>(null);
   const flashTimer = useRef<number>();
+  const [editor, setEditor] = useState<Editor | null>(null);
 
   const hostIp = s.meta?.hostIp ?? null;
 
@@ -49,6 +55,20 @@ export default function App() {
     window.clearTimeout(flashTimer.current);
     flashTimer.current = window.setTimeout(() => setFlash(null), 2500);
   }, []);
+
+  // ---------- config editing ----------
+  const config = s.config;
+  // every save carries the version we last saw; the server refuses it if the file has changed since
+  const save: SaveFn = useCallback((next) => saveConfig(next, config?.version ?? ''), [config?.version]);
+  const saveRawYaml = useCallback((yaml: string) => saveYaml(yaml, config?.version ?? ''), [config?.version]);
+  const startEdit = useCallback(
+    (e: Editor) => {
+      if (!config) return say('config is still loading');
+      if (!config.writable) return say(config.readOnlyReason ?? 'config is read-only');
+      setEditor(e);
+    },
+    [config, say],
+  );
 
   const go = useCallback((next: ViewId) => {
     setView(next);
@@ -138,12 +158,12 @@ export default function App() {
 
   // ---------- keyboard ----------
   useEffect(() => {
-    if (mode !== 'normal') return;
+    if (mode !== 'normal' || editor) return;
     const move = (delta: number) => setSel((i) => Math.min(Math.max(0, count - 1), Math.max(0, i + delta)));
 
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
-      if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA') return;
+      if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT') return;
       if (e.metaKey || e.altKey) return;
 
       let handled = true;
@@ -182,6 +202,10 @@ export default function App() {
           case '?':
             go('help');
             break;
+          case 'e':
+            if (kind === 'containers' && containers[sel]) startEdit({ kind: 'container', name: containers[sel]!.rawName });
+            else handled = false;
+            break;
           case 's':
             if (kind === 'containers') {
               const next = SORT_KEYS[(SORT_KEYS.indexOf(sort) + 1) % SORT_KEYS.length]!;
@@ -206,7 +230,7 @@ export default function App() {
 
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [mode, count, sel, open, go, filter, view, kind, sort, say]);
+  }, [mode, editor, count, sel, open, go, filter, view, kind, sort, say, containers, startEdit]);
 
   // ---------- prompt ----------
   const onSubmit = (value: string) => {
@@ -274,10 +298,27 @@ export default function App() {
     case 'links':
       body = <LinksView snap={s.links} links={links} {...common} />;
       break;
+    case 'config':
+      body = (
+        <ConfigView
+          state={s.config}
+          containers={s.containers?.data ?? []}
+          active={!editor && mode === 'normal'}
+          onEdit={startEdit}
+          onSave={save}
+          onSaveYaml={saveRawYaml}
+          say={say}
+        />
+      );
+      break;
     case 'help':
       body = <HelpView />;
       break;
   }
+
+  const closeEditor = () => setEditor(null);
+  const saved = () => say('saved');
+  const liveContainers = s.containers?.data ?? [];
 
   return (
     <div className="app">
@@ -303,6 +344,15 @@ export default function App() {
         onCancel={onCancel}
         onActivate={setMode}
       />
+      {editor && config?.config && editor.kind === 'link' && (
+        <LinkForm config={config.config} index={editor.index} save={save} onClose={closeEditor} onSaved={saved} />
+      )}
+      {editor && config?.config && editor.kind === 'group' && (
+        <GroupForm config={config.config} index={editor.index} containers={liveContainers} save={save} onClose={closeEditor} onSaved={saved} />
+      )}
+      {editor && config?.config && editor.kind === 'container' && (
+        <ContainerForm config={config.config} name={editor.name} containers={liveContainers} save={save} onClose={closeEditor} onSaved={saved} />
+      )}
     </div>
   );
 }

@@ -7,8 +7,9 @@ const KEYS: [string, string][] = [
   ['enter, o', 'open the selected WebUI (new tab)'],
   ['/', 'filter rows (esc clears)'],
   [':', 'command prompt (tab completes)'],
+  ['e', 'edit the selected container: name, address, category, hide'],
   ['s', 'cycle container sort: category, name, state, age, cpu, mem'],
-  ['1 – 6', 'home, containers, plex, alerts, disks, links'],
+  ['1 – 7', 'home, containers, plex, alerts, disks, links, config'],
   ['?', 'this help'],
   ['esc', 'clear filter, then back to home'],
 ];
@@ -20,6 +21,16 @@ const COMMANDS: [string, string][] = [
   [':alerts  :a', 'Grafana alerts'],
   [':disks  :d', 'array and cache usage'],
   [':links  :l', 'other devices on your network'],
+  [':config  :cfg', 'edit links, categories, containers and the yaml'],
+];
+
+const CONFIG_KEYS: [string, string][] = [
+  ['tab / shift-tab', 'switch section: links, categories, containers, yaml'],
+  ['a', 'add'],
+  ['e, enter', 'edit the selected row'],
+  ['d (twice)', 'delete the row, or reset a container'],
+  ['K / J', 'move a category up or down (order is display order)'],
+  ['i', 'start typing in the yaml box (esc leaves it, ctrl-s saves)'],
 ];
 
 const LABELS: [string, string][] = [
@@ -54,6 +65,9 @@ export function HelpView() {
           <Rows rows={COMMANDS} />
         </Box>
       </div>
+      <Box title="config view">
+        <Rows rows={CONFIG_KEYS} />
+      </Box>
       <Box title="container labels">
         <Rows rows={LABELS} />
         <p className="c-dim help-note">

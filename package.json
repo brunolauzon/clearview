@@ -16,7 +16,7 @@
     "dev": "concurrently -k -n server,web -c yellow,cyan \"npm:dev:server\" \"npm:dev:web\"",
     "dev:demo": "CLEARVIEW_DEMO=1 npm run dev",
     "serve:demo": "CLEARVIEW_DEMO=1 npm run dev:server",
-    "dev:server": "npm run dev -w server",
+    "dev:server": "CONFIG_PATH=../config/clearview.yaml npm run dev -w server",
     "dev:web": "npm run dev -w web",
     "build": "npm run build -w web && npm run build -w server",
     "start": "node server/dist/index.mjs",

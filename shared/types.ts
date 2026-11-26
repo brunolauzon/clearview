@@ -68,6 +68,9 @@ export interface PortMapping {
 
 export interface ContainerInfo {
   id: string;
+  /** Docker's own container name. Config entries (categories, overrides, hide) are keyed by this. */
+  rawName: string;
+  /** what to show: a config override or label if set, else rawName */
   name: string;
   image: string;
   state: ContainerState;
@@ -177,4 +180,67 @@ export interface LinkInfo {
   /** null when check is `none` or the first probe has not finished */
   up: boolean | null;
   latencyMs: number | null;
+}
+
+// ---------- editable config (clearview.yaml) ----------
+
+export interface ConfigLink {
+  name: string;
+  url: string;
+  group: string;
+  check: LinkCheck;
+  description?: string;
+  icon?: string;
+}
+
+export interface ConfigOverride {
+  name?: string;
+  url?: string;
+  icon?: string;
+  group?: string;
+  hide?: boolean;
+}
+
+export interface ConfigGroup {
+  name: string;
+  /** container names; `*` matches any run of characters */
+  containers: string[];
+}
+
+export interface ConfigDisk {
+  name: string;
+  path: string;
+}
+
+/** The editable part of the config as the UI sees it. Category order is the array order. */
+export interface FileConfig {
+  title?: string;
+  links: ConfigLink[];
+  groups: ConfigGroup[];
+  hide: string[];
+  overrides: Record<string, ConfigOverride>;
+  disks?: ConfigDisk[];
+}
+
+export interface ConfigIssue {
+  path: string;
+  message: string;
+}
+
+export interface ConfigState {
+  config: FileConfig;
+  /** the file's text exactly as stored; empty when there is no file yet */
+  yaml: string;
+  /** changes whenever the file's content does; sent back with every save so concurrent edits are caught */
+  version: string;
+  path: string;
+  writable: boolean;
+  /** why editing is off (when writable is false) */
+  readOnlyReason: string | null;
+  /** editing works but something is risky, e.g. the folder is not a mounted volume */
+  warning: string | null;
+  /** false in demo mode: edits apply live but are not written anywhere */
+  persisted: boolean;
+  /** the file on disk failed to parse; the last good config is still in use */
+  loadError: string | null;
 }

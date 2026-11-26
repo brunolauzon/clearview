@@ -63,6 +63,7 @@ export function Header({ host, alertCount, criticalCount, streamCount, onNavigat
         <Hint k=":" label="command" onClick={() => onPrompt('command')} />
         <Hint k="/" label="filter" onClick={() => onPrompt('filter')} />
         <Hint k="⏎" label="open webui" />
+        <Hint k="e" label="edit container" />
         <Hint k="?" label="help" onClick={() => onNavigate('help')} />
       </div>
 

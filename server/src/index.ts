@@ -3,14 +3,16 @@ import Fastify, { LogController } from 'fastify';
 import fastifyStatic from '@fastify/static';
 import type { AlertInfo, ContainerInfo, ContainerStats, HostStats, LinkInfo, Meta, PlexData } from '@clearview/shared';
 import { loadConfig, VERSION } from './config';
+import { ConfigStore } from './configStore';
 import { Hub, Topic } from './hub';
+import { registerConfigRoutes } from './routes/config';
 import { collectContainers, DockerClient } from './sources/docker';
 import { HostCollector } from './sources/host';
 import { StatsCollector } from './sources/stats';
 import { fetchAlerts } from './sources/grafana';
 import { TautulliSource } from './sources/tautulli';
 import { LinkProber } from './sources/links';
-import { DEMO_GROUPS, demoAlerts, demoContainers, demoHost, demoLinks, demoPlex, demoStats } from './sources/demo';
+import { DEMO_FILE_CONFIG, demoAlerts, demoContainers, demoHost, demoLinks, demoPlex, demoStats } from './sources/demo';
 import { errMsg } from './util';
 
 let cfg: ReturnType<typeof loadConfig>;
@@ -28,12 +30,27 @@ const app = Fastify({
 });
 const hub = new Hub();
 
+// The editable part of the config (links, categories, hidden containers, ...). `cfg` is updated in
+// place when it changes, and everything below reads `cfg` at collection time, so edits apply live.
+const store = new ConfigStore(cfg, cfg.demo ? { persist: false, seed: DEMO_FILE_CONFIG } : { persist: true });
+await store.init();
+
 const docker = new DockerClient(cfg.dockerHost);
 const hostCollector = new HostCollector(cfg);
 const tautulli = cfg.tautulli ? new TautulliSource(cfg.tautulli) : null;
 const grafana = cfg.grafana;
 const prober = new LinkProber(cfg.links);
 const stats = new StatsCollector(docker);
+
+/** The links topic has no source until at least one link is configured. */
+function linksSource(): (() => Promise<LinkInfo[]>) | null {
+  if (cfg.links.length === 0) return null;
+  if (cfg.demo) return async () => demoLinks(cfg.links);
+  return async () => {
+    await prober.probeAll();
+    return prober.snapshot();
+  };
+}
 
 const topics = {
   host: new Topic<HostStats>('host', hub, 2_000, cfg.demo ? async () => demoHost() : () => hostCollector.collect()),
@@ -42,48 +59,51 @@ const topics = {
     hub,
     10_000,
     cfg.demo
-      ? async () => demoContainers()
+      ? async () => demoContainers({ hide: cfg.hide, overrides: cfg.overrides, groups: cfg.groups })
       : () => collectContainers(docker, { hostIp: cfg.hostIp, overrides: cfg.overrides, hide: cfg.hide, groups: cfg.groups }),
   ),
   stats: new Topic<Record<string, ContainerStats>>('stats', hub, 5_000, cfg.demo ? async () => demoStats() : () => stats.collect()),
   plex: new Topic<PlexData>('plex', hub, 5_000, cfg.demo ? async () => demoPlex() : tautulli ? () => tautulli.collect() : null),
   alerts: new Topic<AlertInfo[]>('alerts', hub, 30_000, cfg.demo ? async () => demoAlerts() : grafana ? () => fetchAlerts(grafana) : null),
-  links: new Topic<LinkInfo[]>(
-    'links',
-    hub,
-    30_000,
-    cfg.demo
-      ? async () => demoLinks()
-      : cfg.links.length > 0
-        ? async () => {
-            await prober.probeAll();
-            return prober.snapshot();
-          }
-        : null,
-  ),
+  links: new Topic<LinkInfo[]>('links', hub, 30_000, linksSource()),
 };
 
-const meta: Meta = {
-  version: VERSION,
-  title: cfg.title,
-  demo: cfg.demo,
-  hostIp: cfg.hostIp,
-  groups: cfg.demo ? DEMO_GROUPS : cfg.groups.map((g) => g.name),
-  tautulliUrl: cfg.tautulli ? (cfg.tautulli.publicUrl ?? cfg.tautulli.url) : cfg.demo ? 'http://[IP]:8181' : null,
-  grafanaUrl: cfg.grafana ? (cfg.grafana.publicUrl ?? cfg.grafana.url) : cfg.demo ? 'http://[IP]:3000' : null,
-};
+function buildMeta(): Meta {
+  return {
+    version: VERSION,
+    title: cfg.title,
+    demo: cfg.demo,
+    hostIp: cfg.hostIp,
+    groups: cfg.groups.map((g) => g.name),
+    tautulliUrl: cfg.tautulli ? (cfg.tautulli.publicUrl ?? cfg.tautulli.url) : cfg.demo ? 'http://[IP]:8181' : null,
+    grafanaUrl: cfg.grafana ? (cfg.grafana.publicUrl ?? cfg.grafana.url) : cfg.demo ? 'http://[IP]:3000' : null,
+  };
+}
 
 for (const topic of Object.values(topics)) topic.start();
-hub.publish('meta', meta);
+hub.publish('meta', buildMeta());
+hub.publish('config', store.state());
+
+// A config change, from the UI or from someone editing the file, reaches every open tab.
+store.onChange(() => {
+  prober.setLinks(cfg.links);
+  topics.links.reconfigure(linksSource());
+  void topics.containers.refresh();
+  hub.publish('meta', buildMeta());
+  hub.publish('config', store.state());
+});
 
 if (!cfg.demo) {
   docker.watchEvents(() => topics.containers.refreshSoon());
+  // pick up hand edits to the file without a restart
+  setInterval(() => void store.syncFromDisk().catch(() => undefined), 3_000).unref();
 }
 
 // ---------- routes ----------
 
 app.get('/api/health', async () => ({ ok: true, version: VERSION }));
-app.get('/api/meta', async () => meta);
+app.get('/api/meta', async () => buildMeta());
+registerConfigRoutes(app, store);
 
 app.get<{ Params: { topic: string } }>('/api/:topic', async (req, reply) => {
   const topic = topics[req.params.topic as keyof typeof topics];
@@ -118,6 +138,7 @@ app.log.info(
     grafana: Boolean(cfg.grafana),
     links: cfg.links.length,
     hostIp: cfg.hostIp ?? '(browser hostname)',
+    config: store.state().writable ? cfg.configPath : `${cfg.configPath} (read-only)`,
   },
   `clearview ${VERSION} ready`,
 );

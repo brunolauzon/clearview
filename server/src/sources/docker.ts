@@ -232,7 +232,8 @@ export function toContainerInfo(raw: RawContainer, startedAt: string | null, opt
 
   return {
     id: raw.Id.slice(0, 12),
-    name: override.name ?? labels['clearview.name'] ?? rawName,
+    rawName,
+    name: override.name || labels['clearview.name'] || rawName,
     image: raw.Image,
     state,
     statusText: raw.Status,
@@ -249,7 +250,7 @@ export function toContainerInfo(raw: RawContainer, startedAt: string | null, opt
     }),
     icon: override.icon ?? labels['clearview.icon'] ?? labels['net.unraid.docker.icon'] ?? null,
     // most specific wins: per-container override, then the container's own label, then the groups: lists
-    group: override.group ?? labels['clearview.group'] ?? groupFor(rawName, opts.groups),
+    group: override.group || labels['clearview.group'] || groupFor(rawName, opts.groups),
     managed: 'net.unraid.docker.managed' in labels,
   };
 }

@@ -18,11 +18,14 @@ services:
       TAUTULLI_API_KEY: ${TAUTULLI_API_KEY:-}
       GRAFANA_URL: ${GRAFANA_URL:-}
       GRAFANA_TOKEN: ${GRAFANA_TOKEN:-}
+      # Set to 1 to turn off editing in the UI (the config view becomes read-only).
+      CONFIG_READONLY: ${CONFIG_READONLY:-}
     volumes:
       # Container discovery. Read-only mount only hides the file mode: the Docker API is still
       # root-equivalent. See "Security" in the README for the socket-proxy alternative.
       - /var/run/docker.sock:/var/run/docker.sock:ro
       # Array, cache and pool usage (statfs only, nothing is read from the disks).
       - /mnt:/host/mnt:ro
-      # clearview.yaml: custom links, hidden containers, overrides.
-      - ${CONFIG_DIR:-/mnt/user/appdata/clearview}:/config:ro
+      # Where the settings you change in the UI are saved (clearview.yaml). Must be read-write.
+      # Without a mounted folder, edits are lost when the container is recreated.
+      - ${CONFIG_DIR:-/mnt/user/appdata/clearview}:/config
