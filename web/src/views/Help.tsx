@@ -25,7 +25,7 @@ const COMMANDS: [string, string][] = [
 ];
 
 const CONFIG_KEYS: [string, string][] = [
-  ['tab / shift-tab', 'switch section: links, categories, containers, yaml'],
+  ['tab / shift-tab', 'switch section: links, categories, containers, general, yaml'],
   ['a', 'add'],
   ['e, enter', 'edit the selected row'],
   ['d (twice)', 'delete the row, or reset a container'],

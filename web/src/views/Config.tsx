@@ -6,9 +6,10 @@ import type { SaveFn, SaveOutcome } from '../lib/api';
 import { containerEntries, moveGroup, removeContainer, removeGroup, removeLink, type ContainerEntry } from '../lib/configEdit';
 import type { Editor } from '../lib/editor';
 import { shortUrl } from '../lib/format';
+import { GeneralEditor } from './General';
 
-type Section = 'links' | 'categories' | 'containers' | 'yaml';
-const SECTIONS: Section[] = ['links', 'categories', 'containers', 'yaml'];
+type Section = 'links' | 'categories' | 'containers' | 'general' | 'yaml';
+const SECTIONS: Section[] = ['links', 'categories', 'containers', 'general', 'yaml'];
 
 interface ConfigViewProps {
   state: ConfigState | null;
@@ -46,6 +47,7 @@ export function ConfigView({ state, containers, active, onEdit, onSave, onSaveYa
   }, []);
 
   const writable = state?.writable ?? false;
+  const isList = section === 'links' || section === 'categories' || section === 'containers';
 
   /** Run a change made without a form (delete, reorder) and report a refusal. Returns whether it was saved. */
   const apply = useCallback(
@@ -110,6 +112,7 @@ export function ConfigView({ state, containers, active, onEdit, onSave, onSaveYa
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
       if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT') return;
+      if (t.closest('.general')) return; // the settings form handles its own keys, so Tab moves between its fields
       if (e.metaKey || e.ctrlKey || e.altKey) return;
 
       let handled = true;
@@ -126,16 +129,16 @@ export function ConfigView({ state, containers, active, onEdit, onSave, onSaveYa
           setSel((i) => Math.max(0, i - 1));
           break;
         case 'a':
-          if (section !== 'yaml') add();
+          if (isList) add();
           else handled = false;
           break;
         case 'e':
         case 'Enter':
-          if (section !== 'yaml') edit();
+          if (isList) edit();
           else handled = false;
           break;
         case 'd':
-          if (section !== 'yaml') remove();
+          if (isList) remove();
           else handled = false;
           break;
         case 'K':
@@ -155,7 +158,7 @@ export function ConfigView({ state, containers, active, onEdit, onSave, onSaveYa
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [active, section, count, switchTo, add, edit, remove, move]);
+  }, [active, section, isList, count, switchTo, add, edit, remove, move]);
 
   if (!state || !config) {
     return (
@@ -186,7 +189,7 @@ export function ConfigView({ state, containers, active, onEdit, onSave, onSaveYa
           <span className="c-faint tabs-hint">tab switches section</span>
         </div>
 
-        {section !== 'yaml' && (
+        {isList && (
           <div className="toolbar">
             <button type="button" className="btn" onClick={add} tabIndex={-1}>
               <kbd>a</kbd> add
@@ -248,6 +251,8 @@ export function ConfigView({ state, containers, active, onEdit, onSave, onSaveYa
             <p className="c-dim section-note">Only containers with a custom setting are listed. Hidden ones are not shown on the dashboard; reset a row to show it again.</p>
           </>
         )}
+
+        {section === 'general' && <GeneralEditor key={state.version} state={state} onSave={onSave} say={say} />}
 
         {section === 'yaml' && <YamlEditor state={state} writable={writable} onSaveYaml={onSaveYaml} say={say} boxRef={yamlBox} />}
       </Box>

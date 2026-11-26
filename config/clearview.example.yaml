@@ -4,6 +4,10 @@
 # Browser tab title prefix.
 title: tower
 
+# Accent colour for headings, the selected row and highlights, as #rrggbb. Quote it: an unquoted #
+# starts a yaml comment. Leave it out for the built-in orange.
+# accent: "#3b82f6"
+
 # Other devices on your network. `check` decides what the status dot means:
 #   http  any HTTP response counts as up (default; self-signed certs are fine)
 #   tcp   the port accepts a connection

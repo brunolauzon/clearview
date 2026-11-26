@@ -7,3 +7,5 @@ config/*.yaml
 *.log
 .DS_Store
 README.md
+docs
+assets

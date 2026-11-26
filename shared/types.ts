@@ -19,6 +19,8 @@ export interface Meta {
   hostIp: string | null;
   /** container categories in the order they should be listed */
   groups: string[];
+  /** preferred accent colour as #rrggbb, or null for the built-in default */
+  accent: string | null;
   tautulliUrl: string | null;
   grafanaUrl: string | null;
 }
@@ -215,6 +217,8 @@ export interface ConfigDisk {
 /** The editable part of the config as the UI sees it. Category order is the array order. */
 export interface FileConfig {
   title?: string;
+  /** preferred accent colour as #rrggbb; unset means the built-in orange */
+  accent?: string;
   links: ConfigLink[];
   groups: ConfigGroup[];
   hide: string[];

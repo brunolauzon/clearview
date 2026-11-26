@@ -75,6 +75,7 @@ function buildMeta(): Meta {
     demo: cfg.demo,
     hostIp: cfg.hostIp,
     groups: cfg.groups.map((g) => g.name),
+    accent: cfg.accent,
     tautulliUrl: cfg.tautulli ? (cfg.tautulli.publicUrl ?? cfg.tautulli.url) : cfg.demo ? 'http://[IP]:8181' : null,
     grafanaUrl: cfg.grafana ? (cfg.grafana.publicUrl ?? cfg.grafana.url) : cfg.demo ? 'http://[IP]:3000' : null,
   };

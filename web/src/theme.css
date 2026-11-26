@@ -743,6 +743,53 @@ kbd {
   padding: 0 1ch;
 }
 
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.8ch;
+}
+
+.swatch {
+  width: 3.4ch;
+  height: 1.7em;
+  border: 2px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.swatch:hover:not(:disabled) {
+  border-color: var(--dim);
+}
+
+.swatch.on {
+  border-color: var(--fg);
+}
+
+.swatch:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.swatch-input {
+  width: 5ch;
+  height: 1.9em;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+}
+
+.input.hex {
+  width: 11ch;
+}
+
+.general {
+  max-width: 78ch;
+}
+
 .yaml-editor textarea.yaml {
   min-height: 22em;
   height: 52vh;

@@ -1,6 +1,19 @@
-# clearview
+<p align="center">
+  <img src="assets/icon.png" alt="clearview logo" width="112">
+</p>
 
-A terminal-style dashboard for an Unraid homelab. Looks like k9s, runs in a browser tab.
+<h1 align="center">clearview</h1>
+
+<p align="center">
+  A terminal-style dashboard for an Unraid homelab.<br>
+  Looks like k9s, runs in a browser tab.
+</p>
+
+<p align="center">
+  <img src="docs/screenshot-demo.png" alt="The clearview dashboard with demo data: host stats, alerts, Plex streams, and containers grouped by category with live CPU and memory" width="800">
+  <br>
+  <sub>Demo data. Try it yourself with <code>npm run dev:demo</code>.</sub>
+</p>
 
 - **Docker autodiscovery**: every container, its state and health, live CPU and memory use, and a click to open its WebUI
 - **Categories**: group containers into sections like Infrastructure and Media
@@ -9,6 +22,7 @@ A terminal-style dashboard for an Unraid homelab. Looks like k9s, runs in a brow
 - **Plex**: live streams, transcodes, bandwidth, libraries, history and top stats (through Tautulli)
 - **Links**: other devices on your network, with an up/down dot
 - **Edit settings in the UI**: add links, make categories, rename or hide containers. No config file to touch
+- **Your colour**: pick the accent colour (orange by default) and it applies everywhere, live
 - **Keyboard first**: `j/k`, `/` filter, `:` commands with tab completion, `?` help. Mouse and phones work too.
 
 ## Quick start (Unraid)
@@ -52,13 +66,14 @@ Release tags (`git tag v0.1.0 && git push --tags`) also publish `:0.1.0` and `:0
 
 ## Changing settings in the UI
 
-Press `7` (or type `:config`) to open the config view. It has four sections, switched with `tab`:
+Press `7` (or type `:config`) to open the config view. It has five sections, switched with `tab`:
 
 | Section | What you can do |
 |---|---|
 | **links** | add, edit and delete devices on your network |
 | **categories** | add, edit, delete and reorder categories; pick containers from a list or use `*` wildcards |
 | **containers** | containers you have customised: shown-as name, WebUI address, category, hidden |
+| **general** | the browser tab title and your accent colour: pick a preset, any colour, or type a hex code, and the page previews it as you choose |
 | **yaml** | the whole file as text, with validation, for anything the forms do not cover |
 
 Keys: `a` add, `e` or `enter` edit, `d` twice to delete, `K` and `J` move a category up and down. On the containers page, `e` edits the selected container directly.
@@ -68,6 +83,10 @@ Changes apply immediately, with no restart, and every open browser tab updates. 
 If you edit the file by hand, clearview notices within a few seconds. If you save from the UI while the file has changed underneath you, the save is refused rather than overwriting your edit. A file with a mistake in it is ignored, the last good settings stay in use, and the config view says what is wrong.
 
 Editing needs the config folder mounted read-write. If it is not writable the view is read-only and says why. If the folder is not a mounted volume at all, edits work but are lost when the container is recreated, and the view warns you. Set `CONFIG_READONLY=1` to turn editing off completely.
+
+## Accent colour
+
+The accent is the colour of headings, the selected row, the active tab and highlights. It is orange until you choose one in the config view (general). It is saved in `clearview.yaml` as `accent: "#3b82f6"`, so every browser and device shows the same colour. Always quote it in the file: an unquoted `#` starts a yaml comment, and clearview says so if you forget. Colours too dark to read on the dark background are refused in the picker. Delete the line, or press **default**, to go back to orange.
 
 ## How containers get their WebUI link
 

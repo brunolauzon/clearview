@@ -89,6 +89,47 @@ describe('validation', () => {
   });
 });
 
+describe('accent colour', () => {
+  it('round-trips through yaml, lower-cased, and is quoted so # is not a comment', () => {
+    const text = toYamlText({ ...sample, accent: '#3b82f6' });
+    expect(text).toMatch(/accent: ["']#3b82f6["']/);
+    const parsed = parseFileText(text);
+    expect(parsed.ok && parsed.file.accent).toBe('#3b82f6');
+    const upper = parseFileText('accent: "#3B82F6"\n');
+    expect(upper.ok && upper.file.accent).toBe('#3b82f6');
+  });
+
+  it('rejects anything that is not a 6-digit hex colour', () => {
+    for (const bad of ['blue', '#fff', '3b82f6', '#3b82f', '#gggggg']) {
+      const r = parseFileText(`accent: "${bad}"\n`);
+      expect(r.ok, bad).toBe(false);
+      expect(!r.ok && r.issues[0]?.path).toBe('accent');
+    }
+  });
+
+  it('explains the unquoted-# mistake instead of silently ignoring it', () => {
+    const r = parseFileText('accent: #3b82f6\n');
+    expect(r.ok).toBe(false);
+    expect(!r.ok && r.issues[0]).toMatchObject({ path: 'accent', message: expect.stringMatching(/quote it/) });
+  });
+
+  it('treats a blank colour from the UI as unset and rejects a bad one', () => {
+    const blank = validateFileConfig({ ...sample, accent: '' });
+    expect(blank.ok && blank.file.accent).toBeUndefined();
+    const bad = validateFileConfig({ ...sample, accent: 'blue' });
+    expect(!bad.ok && bad.issues[0]?.path).toBe('accent');
+  });
+
+  it('is applied live when saved, and cleared when saved without one', async () => {
+    const { cfg, store } = await open('title: x\n');
+    expect((await store.save({ ...sample, accent: '#3b82f6' }, store.state().version)).ok).toBe(true);
+    expect(cfg.accent).toBe('#3b82f6');
+    expect(store.state().config.accent).toBe('#3b82f6');
+    expect((await store.save(sample, store.state().version)).ok).toBe(true);
+    expect(cfg.accent).toBeNull();
+  });
+});
+
 describe('ConfigStore', () => {
   it('starts empty and writable when the file does not exist yet', async () => {
     const { store } = await open();

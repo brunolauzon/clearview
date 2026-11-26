@@ -10,6 +10,7 @@ import { saveConfig, saveYaml, type SaveFn } from './lib/api';
 import { parseCommand, VIEWS, viewFromHash, type ViewId } from './lib/commands';
 import type { Editor } from './lib/editor';
 import { resolveUrl } from './lib/format';
+import { applyAccent, cacheAccent } from './lib/theme';
 import { containerSearchText, filterBy, SORT_KEYS, sortContainers, type SortKey } from './lib/rows';
 import { AlertsView } from './views/Alerts';
 import { ConfigView } from './views/Config';
@@ -82,6 +83,16 @@ export default function App() {
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
+
+  // the accent colour comes from the server's config; depend on the value, not the whole meta object,
+  // so an unrelated settings change does not cancel a colour being previewed in the config view
+  const accent = s.meta?.accent ?? null;
+  const haveMeta = s.meta !== null;
+  useEffect(() => {
+    if (!haveMeta) return;
+    applyAccent(accent);
+    cacheAccent(accent);
+  }, [accent, haveMeta]);
 
   useEffect(() => {
     document.title = s.meta?.title ? `${s.meta.title} · clearview` : 'clearview';

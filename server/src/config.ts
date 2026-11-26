@@ -32,9 +32,18 @@ const overrideSchema = z
   })
   .strict();
 
+const ACCENT_HINT = 'must be a colour like "#3b82f6" (quote it: an unquoted # starts a yaml comment)';
+
+const accentColor = z
+  .string({ invalid_type_error: ACCENT_HINT }) // an unquoted #3b82f6 reads as an empty value
+  .trim()
+  .regex(/^#[0-9a-fA-F]{6}$/, ACCENT_HINT)
+  .transform((s) => s.toLowerCase());
+
 const fileSchema = z
   .object({
     title: z.string().optional(),
+    accent: accentColor.optional(),
     links: z.array(linkSchema).default([]),
     // category name -> container names (`*` wildcard). Key order is the display order.
     groups: z.record(z.string(), z.array(text)).default({}),
@@ -65,6 +74,7 @@ export function emptyFileConfig(): FileConfig {
 function fromParsed(p: z.infer<typeof fileSchema>): FileConfig {
   return {
     ...(p.title ? { title: p.title } : {}),
+    ...(p.accent ? { accent: p.accent } : {}),
     links: p.links,
     groups: Object.entries(p.groups).map(([name, containers]) => ({ name, containers })),
     hide: p.containers.hide,
@@ -126,6 +136,7 @@ export function validateFileConfig(input: unknown): ParseResult {
 
   return validateShape({
     title: c.title,
+    accent: c.accent === '' ? undefined : c.accent, // a blank colour means "use the default"
     links: c.links,
     groups: Object.fromEntries(groups),
     containers: { hide: c.hide, overrides: c.overrides },
@@ -145,6 +156,7 @@ const present = (s: string | undefined): string | undefined => (s && s.trim() ? 
 export function toYamlText(file: FileConfig): string {
   const body: Record<string, unknown> = {};
   if (file.title) body.title = file.title;
+  if (file.accent) body.accent = file.accent;
   if (file.groups.length > 0) {
     body.groups = Object.fromEntries(file.groups.map((g) => [g.name, g.containers]));
   }
@@ -191,6 +203,8 @@ export interface AppConfig {
   hostIp: string | null;
   hostName: string | null;
   title: string | null;
+  /** preferred accent colour (#rrggbb) from the config file */
+  accent: string | null;
   demo: boolean;
   /** unix socket path or tcp://host:port (e.g. a docker-socket-proxy) */
   dockerHost: string;
@@ -212,6 +226,7 @@ export interface AppConfig {
 /** Copy the editable part of the config into the running config. Everything reads these fields live. */
 export function applyFileConfig(cfg: AppConfig, file: FileConfig): void {
   cfg.title = file.title ?? null;
+  cfg.accent = file.accent ?? null;
   cfg.links = file.links;
   cfg.groups = file.groups;
   cfg.hide = file.hide;
@@ -249,6 +264,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     hostIp: clean(env.HOST_IP),
     hostName: clean(env.HOST_NAME),
     title: null,
+    accent: null,
     demo: env.CLEARVIEW_DEMO === '1' || env.CLEARVIEW_DEMO === 'true',
     dockerHost: clean(env.DOCKER_HOST) ?? '/var/run/docker.sock',
     disksRoot: clean(env.DISKS_ROOT) ?? '/host/mnt',
