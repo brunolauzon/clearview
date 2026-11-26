@@ -41,7 +41,7 @@ Settings you change in the UI are saved to `/mnt/user/appdata/clearview/clearvie
 
 ## Install from the Unraid UI (template)
 
-`unraid-template.xml` is an Unraid Docker template. It pulls `ghcr.io/brunolauzon/clearview:latest`, which `.github/workflows/image.yml` builds for amd64 and arm64 on every push to `main`.
+`unraid-template/unraid-template.xml` is an Unraid Docker template. It pulls `ghcr.io/brunolauzon/clearview:latest`, which `.github/workflows/image.yml` builds for amd64 and arm64 on every push to `main`.
 
 One-time setup on GitHub:
 
@@ -55,7 +55,7 @@ Then on the server, pick one:
 
   ```bash
   wget -O /boot/config/plugins/dockerMan/templates-user/my-clearview.xml \
-    https://raw.githubusercontent.com/brunolauzon/clearview/main/unraid-template.xml
+    https://raw.githubusercontent.com/brunolauzon/clearview/main/unraid-template/unraid-template.xml
   ```
 
   Then Docker, Add Container, choose **my-clearview** from the template list.

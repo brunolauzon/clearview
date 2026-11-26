@@ -7,7 +7,7 @@
        then Docker > Add Container > pick "clearview".
     2. Or copy this file straight into the user templates folder on the server:
        wget -O /boot/config/plugins/dockerMan/templates-user/my-clearview.xml \
-         https://raw.githubusercontent.com/brunolauzon/clearview/main/unraid-template.xml
+         https://raw.githubusercontent.com/brunolauzon/clearview/main/unraid-template/unraid-template.xml
 
   The image is built and pushed to GHCR by .github/workflows/image.yml.
   The package must be set to Public (GitHub > Packages > clearview > Package settings)
@@ -27,7 +27,7 @@
   <Overview>Terminal-style dashboard for your Unraid server, in the spirit of k9s. Discovers your Docker containers and opens their WebUIs on click, shows CPU, memory and per-disk usage, firing Grafana alerts, who is streaming on Plex (via Tautulli), and links to other devices on your network. Everything except the Docker socket and the disk mount is optional.</Overview>
   <Category>Tools:</Category>
   <WebUI>http://[IP]:[PORT:7878]/</WebUI>
-  <TemplateURL>https://raw.githubusercontent.com/brunolauzon/clearview/main/unraid-template.xml</TemplateURL>
+  <TemplateURL>https://raw.githubusercontent.com/brunolauzon/clearview/main/unraid-template/unraid-template.xml</TemplateURL>
   <Icon>https://raw.githubusercontent.com/brunolauzon/clearview/main/assets/icon.png</Icon>
   <Requires>Optional: Tautulli (Plex stats) and Grafana (alerts). Create the Grafana token with the Viewer role.</Requires>
   <ExtraParams/>
