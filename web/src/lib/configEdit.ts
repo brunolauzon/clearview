@@ -18,6 +18,11 @@ export function parsePatterns(text: string): string[] {
 
 export const patternsText = (list: string[]): string => list.join('\n');
 
+/** "aapl, ^gspc shop.to" -> ["AAPL", "^GSPC", "SHOP.TO"]: split on commas or spaces, upper-cased, no repeats. */
+export function parseSymbols(text: string): string[] {
+  return parsePatterns(text.replace(/\s+/g, ',').toUpperCase());
+}
+
 // ---------- links ----------
 
 export function upsertLink(c: FileConfig, index: number | null, link: ConfigLink): FileConfig {

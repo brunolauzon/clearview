@@ -1,5 +1,54 @@
 import { describe, expect, it } from 'vitest';
-import { barParts, fmtAge, fmtAgo, fmtBytes, fmtCpu, fmtKbps, levelOf, resolveUrl, shortImage, shortUrl } from './format';
+import {
+  barParts,
+  fmtAge,
+  fmtAgo,
+  fmtBitrate,
+  fmtBytes,
+  fmtCpu,
+  fmtKbps,
+  fmtPrice,
+  fmtSigned,
+  levelOf,
+  priceDigits,
+  resolveUrl,
+  shortImage,
+  shortUrl,
+  weatherGlyph,
+} from './format';
+
+describe('prices', () => {
+  it('separates thousands and shows more decimals under 1', () => {
+    expect(fmtPrice(7182.78)).toBe('7,182.78');
+    expect(fmtPrice(355.5)).toBe('355.50');
+    expect(fmtPrice(0.12345)).toBe('0.1235');
+    expect(priceDigits(0.5)).toBe(4);
+    expect(priceDigits(12)).toBe(2);
+  });
+  it('signs gains and losses, and drops the sign when it rounds to zero', () => {
+    expect(fmtSigned(1.509999)).toBe('+1.51');
+    expect(fmtSigned(-18.3100004)).toBe('-18.31');
+    expect(fmtSigned(-0.0001)).toBe('0.00');
+    expect(fmtSigned(1234.5)).toBe('+1,234.50');
+    expect(fmtSigned(0.00234, 4)).toBe('+0.0023');
+  });
+});
+
+describe('fmtBitrate', () => {
+  it('scales bits per second and marks unknowns', () => {
+    expect([512, 45_000, 84_000_000, 1_250_000_000].map(fmtBitrate)).toEqual(['512 bps', '45 kbps', '84.0 Mbps', '1.3 Gbps']);
+    expect(fmtBitrate(0)).toBe('0 bps');
+    expect(fmtBitrate(null)).toBe('-');
+  });
+});
+
+describe('weatherGlyph', () => {
+  it('covers the weather groups, with a moon at night', () => {
+    expect(weatherGlyph(0, true)).toBe('☀');
+    expect(weatherGlyph(1, false)).toBe('☾');
+    expect([2, 3, 45, 63, 75, 85, 81, 95].map((c) => weatherGlyph(c, true))).toEqual(['⛅', '☁', '≋', '☂', '❄', '❄', '☂', '⚡']);
+  });
+});
 
 describe('fmtCpu', () => {
   it('shows one decimal under 10%, whole numbers above, a dash when unknown', () => {

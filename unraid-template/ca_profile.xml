@@ -1,7 +1,7 @@
 <CommunityApplications>
   <!-- Required profile. Markdown is supported. -->
   <Profile>
-    **Clearview** is a terminal-style dashboard for your Unraid server, in the spirit of k9s. It discovers your Docker containers and opens their WebUIs on click, shows CPU, memory and per-disk usage, live CPU and memory for every container, firing Grafana alerts, who is streaming on Plex (through Tautulli), and links to other devices on your network.
+    **Clearview** is a terminal-style dashboard for your Unraid server, in the spirit of k9s. It discovers your Docker containers and opens their WebUIs on click, shows CPU, memory and per-disk usage, live CPU and memory for every container, firing Grafana alerts, UniFi network stats, Deluge torrent stats, who is streaming on Plex (through Tautulli), and links to other devices on your network.
 
     You change its settings in the UI: add links, group containers into categories like Infrastructure and Media, rename or hide containers, and pick your own accent colour. There is no config file to edit by hand.
 

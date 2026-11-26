@@ -5,6 +5,7 @@ import {
   containerEntries,
   moveGroup,
   parsePatterns,
+  parseSymbols,
   removeContainer,
   removeGroup,
   removeLink,
@@ -31,6 +32,13 @@ describe('parsePatterns', () => {
   it('splits on lines and commas, trims, drops blanks and repeats, keeps order', () => {
     expect(parsePatterns(' plex,\n tautulli\n\nplex ,*arr ')).toEqual(['plex', 'tautulli', '*arr']);
     expect(parsePatterns('')).toEqual([]);
+  });
+});
+
+describe('parseSymbols', () => {
+  it('accepts commas or spaces, upper-cases and removes repeats', () => {
+    expect(parseSymbols(' aapl, ^gspc   shop.to,AAPL\nbtc-usd ')).toEqual(['AAPL', '^GSPC', 'SHOP.TO', 'BTC-USD']);
+    expect(parseSymbols('  ')).toEqual([]);
   });
 });
 

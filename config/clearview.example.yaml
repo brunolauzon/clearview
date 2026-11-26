@@ -4,9 +4,19 @@
 # Browser tab title prefix.
 title: tower
 
-# Accent colour for headings, the selected row and highlights, as #rrggbb. Quote it: an unquoted #
-# starts a yaml comment. Leave it out for the built-in orange.
+# Look. theme: clearview (default), dracula, nord, gruvbox, tokyo-night, catppuccin-mocha, one-dark,
+# monokai, solarized-dark, solarized-light or catppuccin-latte. background and accent optionally
+# replace the theme's colours. Quote colours: an unquoted # starts a yaml comment.
+# theme: dracula
+# background: "#101018"
 # accent: "#3b82f6"
+
+# Header weather (from open-meteo.com) and stock ticker (Yahoo Finance symbols, unofficial and
+# possibly delayed). Both are off until set, and only then does the server contact those services.
+# weather:
+#   location: "Paris, FR"   # city, optionally with country or region, or "48.85, 2.35"
+#   units: metric           # metric or imperial
+# stocks: [AAPL, ^GSPC, SHOP.TO, BTC-USD]
 
 # Other devices on your network. `check` decides what the status dot means:
 #   http  any HTTP response counts as up (default; self-signed certs are fine)

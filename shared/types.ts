@@ -19,7 +19,10 @@ export interface Meta {
   hostIp: string | null;
   /** container categories in the order they should be listed */
   groups: string[];
-  /** preferred accent colour as #rrggbb, or null for the built-in default */
+  /** colour theme id, or null for the built-in one */
+  theme: string | null;
+  /** #rrggbb overrides of the theme's background and accent, or null */
+  background: string | null;
   accent: string | null;
   tautulliUrl: string | null;
   grafanaUrl: string | null;
@@ -184,6 +187,79 @@ export interface LinkInfo {
   latencyMs: number | null;
 }
 
+// ---------- weather and stocks (header) ----------
+
+export type Units = 'metric' | 'imperial';
+
+export interface WeatherConfig {
+  /** a city ("Paris", "London, CA") or "latitude,longitude" */
+  location: string;
+  units: Units;
+}
+
+export interface WeatherData {
+  place: string;
+  temp: number;
+  unit: 'C' | 'F';
+  /** WMO weather interpretation code */
+  code: number;
+  summary: string;
+  isDay: boolean;
+  high: number | null;
+  low: number | null;
+}
+
+export interface Quote {
+  symbol: string;
+  name: string | null;
+  price: number | null;
+  /** today's move against the previous close, in the quote's currency */
+  change: number | null;
+  changePct: number | null;
+  currency: string | null;
+  /** why there is no price for this symbol */
+  error: string | null;
+}
+
+// ---------- network (UniFi console) ----------
+
+export interface UnifiData {
+  site: string;
+  /** null when no gateway could be identified among the site's devices */
+  gateway: {
+    name: string;
+    model: string;
+    cpuPct: number | null;
+    memPct: number | null;
+    uptimeSec: number | null;
+    /** WAN throughput in bits per second */
+    rxBps: number | null;
+    txBps: number | null;
+  } | null;
+  clients: { total: number; wired: number; wireless: number; vpn: number; guests: number };
+  devices: { total: number; online: number; problems: { name: string; state: string }[] };
+}
+
+// ---------- torrents (Deluge) ----------
+
+export interface ActiveTorrent {
+  name: string;
+  progressPct: number;
+  downloadBytesPerSec: number;
+  /** null when Deluge has no estimate */
+  etaSec: number | null;
+  sizeBytes: number;
+}
+
+export interface TorrentData {
+  downloadBytesPerSec: number;
+  uploadBytesPerSec: number;
+  freeBytes: number | null;
+  counts: { total: number; downloading: number; seeding: number; paused: number; queued: number; checking: number; error: number };
+  /** the downloading torrents, fastest first */
+  active: ActiveTorrent[];
+}
+
 // ---------- editable config (clearview.yaml) ----------
 
 export interface ConfigLink {
@@ -216,8 +292,16 @@ export interface ConfigDisk {
 
 /** The editable part of the config as the UI sees it. Category order is the array order. */
 export interface FileConfig {
+  /** local weather in the header; unset hides it */
+  weather?: WeatherConfig;
+  /** stock symbols shown in the header, e.g. AAPL, ^GSPC, SHOP.TO */
+  stocks?: string[];
   title?: string;
-  /** preferred accent colour as #rrggbb; unset means the built-in orange */
+  /** colour theme id from themes.ts; unset means the built-in one */
+  theme?: string;
+  /** background colour as #rrggbb, replacing the theme's */
+  background?: string;
+  /** accent colour as #rrggbb, replacing the theme's */
   accent?: string;
   links: ConfigLink[];
   groups: ConfigGroup[];

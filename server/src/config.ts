@@ -1,8 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type { ConfigIssue, FileConfig } from '@clearview/shared';
+import type { ConfigIssue, FileConfig, WeatherConfig } from '@clearview/shared';
 import { Document, parse as parseYaml } from 'yaml';
 import { z } from 'zod';
+import { THEME_IDS } from '../../shared/themes';
 
 export const VERSION = '0.1.0';
 
@@ -32,18 +33,43 @@ const overrideSchema = z
   })
   .strict();
 
-const ACCENT_HINT = 'must be a colour like "#3b82f6" (quote it: an unquoted # starts a yaml comment)';
+const COLOR_HINT = 'must be a colour like "#3b82f6" (quote it: an unquoted # starts a yaml comment)';
 
-const accentColor = z
-  .string({ invalid_type_error: ACCENT_HINT }) // an unquoted #3b82f6 reads as an empty value
+const hexColor = z
+  .string({ invalid_type_error: COLOR_HINT }) // an unquoted #3b82f6 reads as an empty value
   .trim()
-  .regex(/^#[0-9a-fA-F]{6}$/, ACCENT_HINT)
+  .regex(/^#[0-9a-fA-F]{6}$/, COLOR_HINT)
   .transform((s) => s.toLowerCase());
+
+const themeId = z
+  .string()
+  .trim()
+  .refine((id) => THEME_IDS.includes(id), { message: `unknown theme (choose one of: ${THEME_IDS.join(', ')})` });
+
+/** Yahoo-style tickers: AAPL, ^GSPC, BTC-USD, SHOP.TO, EURUSD=X */
+const stockSymbol = z
+  .string()
+  .trim()
+  .regex(/^[A-Za-z0-9.^=-]{1,15}$/, 'not a stock symbol (examples: AAPL, ^GSPC, BTC-USD, SHOP.TO)')
+  .transform((s) => s.toUpperCase());
+
+export const MAX_STOCKS = 6;
 
 const fileSchema = z
   .object({
     title: z.string().optional(),
-    accent: accentColor.optional(),
+    theme: themeId.optional(),
+    background: hexColor.optional(),
+    accent: hexColor.optional(),
+    weather: z
+      .object({ location: text, units: z.enum(['metric', 'imperial']).default('metric') })
+      .strict()
+      .optional(),
+    stocks: z
+      .array(stockSymbol)
+      .max(MAX_STOCKS, `at most ${MAX_STOCKS} stock symbols`)
+      .transform((list) => [...new Set(list)])
+      .optional(),
     links: z.array(linkSchema).default([]),
     // category name -> container names (`*` wildcard). Key order is the display order.
     groups: z.record(z.string(), z.array(text)).default({}),
@@ -74,7 +100,11 @@ export function emptyFileConfig(): FileConfig {
 function fromParsed(p: z.infer<typeof fileSchema>): FileConfig {
   return {
     ...(p.title ? { title: p.title } : {}),
+    ...(p.theme ? { theme: p.theme } : {}),
+    ...(p.background ? { background: p.background } : {}),
     ...(p.accent ? { accent: p.accent } : {}),
+    ...(p.weather ? { weather: p.weather } : {}),
+    ...(p.stocks && p.stocks.length > 0 ? { stocks: p.stocks } : {}),
     links: p.links,
     groups: Object.entries(p.groups).map(([name, containers]) => ({ name, containers })),
     hide: p.containers.hide,
@@ -136,7 +166,11 @@ export function validateFileConfig(input: unknown): ParseResult {
 
   return validateShape({
     title: c.title,
-    accent: c.accent === '' ? undefined : c.accent, // a blank colour means "use the default"
+    theme: c.theme === '' ? undefined : c.theme,
+    background: c.background === '' ? undefined : c.background, // a blank colour means "use the theme's"
+    accent: c.accent === '' ? undefined : c.accent,
+    weather: c.weather,
+    stocks: c.stocks,
     links: c.links,
     groups: Object.fromEntries(groups),
     containers: { hide: c.hide, overrides: c.overrides },
@@ -156,7 +190,11 @@ const present = (s: string | undefined): string | undefined => (s && s.trim() ? 
 export function toYamlText(file: FileConfig): string {
   const body: Record<string, unknown> = {};
   if (file.title) body.title = file.title;
+  if (file.theme) body.theme = file.theme;
+  if (file.background) body.background = file.background;
   if (file.accent) body.accent = file.accent;
+  if (file.weather) body.weather = { location: file.weather.location, units: file.weather.units };
+  if (file.stocks && file.stocks.length > 0) body.stocks = file.stocks;
   if (file.groups.length > 0) {
     body.groups = Object.fromEntries(file.groups.map((g) => [g.name, g.containers]));
   }
@@ -203,9 +241,16 @@ export interface AppConfig {
   hostIp: string | null;
   hostName: string | null;
   title: string | null;
-  /** preferred accent colour (#rrggbb) from the config file */
+  /** look, from the config file: theme id plus optional #rrggbb overrides */
+  theme: string | null;
+  background: string | null;
   accent: string | null;
+  /** header weather and stock ticker, from the config file */
+  weather: WeatherConfig | null;
+  stocks: string[];
   demo: boolean;
+  /** demo mode only: false shows the dashboard with nothing firing */
+  demoAlerts: boolean;
   /** unix socket path or tcp://host:port (e.g. a docker-socket-proxy) */
   dockerHost: string;
   disksRoot: string;
@@ -213,6 +258,9 @@ export interface AppConfig {
   webDir: string;
   tautulli: { url: string; apiKey: string; publicUrl: string | null } | null;
   grafana: { url: string; token: string | null; publicUrl: string | null } | null;
+  /** UniFi console, read through the Network Integration API */
+  unifi: { url: string; apiKey: string; site: string | null; insecure: boolean } | null;
+  deluge: { url: string; password: string } | null;
   links: LinkConfig[];
   /** categories in display order */
   groups: GroupRule[];
@@ -226,7 +274,11 @@ export interface AppConfig {
 /** Copy the editable part of the config into the running config. Everything reads these fields live. */
 export function applyFileConfig(cfg: AppConfig, file: FileConfig): void {
   cfg.title = file.title ?? null;
+  cfg.theme = file.theme ?? null;
+  cfg.background = file.background ?? null;
   cfg.accent = file.accent ?? null;
+  cfg.weather = file.weather ?? null;
+  cfg.stocks = file.stocks ?? [];
   cfg.links = file.links;
   cfg.groups = file.groups;
   cfg.hide = file.hide;
@@ -258,14 +310,24 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const tautulliUrl = clean(env.TAUTULLI_URL);
   const tautulliKey = clean(env.TAUTULLI_API_KEY);
   const grafanaUrl = clean(env.GRAFANA_URL);
+  const unifiUrl = clean(env.UNIFI_URL);
+  const unifiKey = clean(env.UNIFI_API_KEY);
+  const delugeUrl = clean(env.DELUGE_URL);
+  const delugePassword = clean(env.DELUGE_PASSWORD);
+  const flag = (v: string | undefined) => v === '1' || v === 'true';
 
   const cfg: AppConfig = {
     port: Number(env.PORT) || 7878,
     hostIp: clean(env.HOST_IP),
     hostName: clean(env.HOST_NAME),
     title: null,
+    theme: null,
+    background: null,
     accent: null,
+    weather: null,
+    stocks: [],
     demo: env.CLEARVIEW_DEMO === '1' || env.CLEARVIEW_DEMO === 'true',
+    demoAlerts: env.CLEARVIEW_DEMO_ALERTS !== '0',
     dockerHost: clean(env.DOCKER_HOST) ?? '/var/run/docker.sock',
     disksRoot: clean(env.DISKS_ROOT) ?? '/host/mnt',
     disks: null,
@@ -285,6 +347,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
           publicUrl: clean(env.GRAFANA_PUBLIC_URL) ? stripSlash(clean(env.GRAFANA_PUBLIC_URL)!) : null,
         }
       : null,
+    unifi:
+      unifiUrl && unifiKey
+        ? { url: stripSlash(unifiUrl), apiKey: unifiKey, site: clean(env.UNIFI_SITE), insecure: flag(env.UNIFI_INSECURE) }
+        : null,
+    deluge: delugeUrl && delugePassword ? { url: stripSlash(delugeUrl), password: delugePassword } : null,
     links: [],
     groups: [],
     hide: [],

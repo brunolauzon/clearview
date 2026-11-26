@@ -2,6 +2,7 @@
   --bg: #0d0d0f;
   --bg-alt: #17171b;
   --fg: #d7d7dc;
+  --strong: #ffffff;
   --dim: #8a8a96;
   --faint: #4a4a54;
   --border: #35353d;
@@ -86,7 +87,7 @@ button {
 /* ---------- header ---------- */
 .hdr {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.5fr) auto;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.2fr) auto auto;
   gap: 2ch;
   padding: 0.7em 1ch 0.1em;
   align-items: start;
@@ -106,8 +107,23 @@ button {
   min-width: 7ch;
 }
 
+.hdr-info {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.meter .k {
+  max-width: 7ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.meter.clickable {
+  cursor: pointer;
+}
+
 .kv .v {
-  color: #fff;
+  color: var(--strong);
 }
 
 .meter .pct {
@@ -145,6 +161,59 @@ button {
 
 .hint:hover .hl {
   color: var(--fg);
+}
+
+/* date, weather and stock ticker */
+.hdr-widget {
+  display: flex;
+  flex-direction: column;
+  align-self: start;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.wx-line {
+  display: flex;
+  gap: 1ch;
+  align-items: baseline;
+}
+
+.hdr-widget .date,
+.wx-temp {
+  color: var(--strong);
+  font-weight: 700;
+}
+
+.wx-place {
+  max-width: 14ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ticker {
+  display: grid;
+  grid-template-columns: 8ch 10ch auto;
+  column-gap: 1ch;
+}
+
+.ticker .sym {
+  color: var(--accent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ticker .price {
+  color: var(--strong);
+  text-align: right;
+}
+
+.stale {
+  opacity: 0.55;
+}
+
+.widget-setup {
+  white-space: normal;
+  max-width: 28ch;
 }
 
 .hdr-brand {
@@ -382,30 +451,27 @@ pre.code {
   text-overflow: ellipsis;
 }
 
+.row-label {
+  width: 8ch;
+  flex: none;
+  color: var(--dim);
+}
+
+.torrent-pct {
+  min-width: 4ch;
+  text-align: right;
+}
+
+.torrent-eta {
+  min-width: 6ch;
+  text-align: right;
+}
+
 .grow-text {
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.meter-row {
-  display: flex;
-  gap: 1ch;
-  align-items: center;
-  white-space: nowrap;
-}
-
-.meter-label {
-  width: 7ch;
-  color: var(--dim);
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.meter-pct {
-  width: 4ch;
-  text-align: right;
 }
 
 /* ---------- plex / help layouts ---------- */
@@ -790,6 +856,35 @@ kbd {
   max-width: 78ch;
 }
 
+/* ---------- theme picker ---------- */
+.themes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(22ch, 1fr));
+  gap: 0.8ch;
+}
+
+.theme-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
+  padding: 0.35em 1ch;
+  border: 2px solid transparent;
+  border-radius: 5px;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+
+.theme-card .swatches-row {
+  display: flex;
+  gap: 0.5ch;
+}
+
+.theme-card:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
 .yaml-editor textarea.yaml {
   min-height: 22em;
   height: 52vh;
@@ -800,6 +895,12 @@ kbd {
 }
 
 /* ---------- responsive ---------- */
+/* not enough room for the widget beside the shortcuts and the logo */
+@media (max-width: 1199px) {
+  .hdr { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.5fr) auto; }
+  .hdr-widget { display: none; }
+}
+
 @media (max-width: 1250px) {
   .cols3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

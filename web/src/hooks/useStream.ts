@@ -8,7 +8,11 @@ import type {
   LinkInfo,
   Meta,
   PlexData,
+  Quote,
   Snapshot,
+  TorrentData,
+  UnifiData,
+  WeatherData,
 } from '@clearview/shared';
 
 export interface StreamState {
@@ -21,9 +25,13 @@ export interface StreamState {
   plex: Snapshot<PlexData> | null;
   alerts: Snapshot<AlertInfo[]> | null;
   links: Snapshot<LinkInfo[]> | null;
+  weather: Snapshot<WeatherData> | null;
+  quotes: Snapshot<Quote[]> | null;
+  unifi: Snapshot<UnifiData> | null;
+  torrents: Snapshot<TorrentData> | null;
 }
 
-const TOPICS = ['meta', 'config', 'host', 'containers', 'stats', 'plex', 'alerts', 'links'] as const;
+const TOPICS = ['meta', 'config', 'host', 'containers', 'stats', 'plex', 'alerts', 'links', 'weather', 'quotes', 'unifi', 'torrents'] as const;
 
 const initial: StreamState = {
   connected: false,
@@ -35,6 +43,10 @@ const initial: StreamState = {
   plex: null,
   alerts: null,
   links: null,
+  weather: null,
+  quotes: null,
+  unifi: null,
+  torrents: null,
 };
 
 /** One EventSource for the whole app. The browser reconnects on its own; the server replays the latest value of every topic. */

@@ -1,37 +1,74 @@
-import type { AlertInfo, ContainerInfo, HostStats, PlexData, Snapshot } from '@clearview/shared';
+import type { AlertInfo, ContainerInfo, PlexData, Snapshot, TorrentData, UnifiData } from '@clearview/shared';
 import { Bar } from '../components/Bar';
 import { Box, Note } from '../components/Box';
-import { fmtAgo, fmtBytes, fmtKbps, levelOf } from '../lib/format';
+import { fmtAge, fmtAgo, fmtBitrate, fmtBytes, fmtKbps } from '../lib/format';
+import { middlePanel } from '../lib/panels';
 import type { SortKey, StatsMap } from '../lib/rows';
 import { SEVERITY_LABEL, SEVERITY_TONE } from './Alerts';
 import { ContainersTable } from './Containers';
 import { inlineState } from './Gate';
 
-function Meter({ label, pct, detail }: { label: string; pct: number; detail?: string }) {
+/** "⚠ error" above data that is no longer being refreshed. */
+function Stale<T>({ snap }: { snap: Snapshot<T> | null }) {
+  return snap && !snap.ok && snap.data ? <div className="line c-err">⚠ {snap.error}</div> : null;
+}
+
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="meter-row">
-      <span className="meter-label">{label}</span>
-      <Bar pct={pct} width={16} />
-      <span className={`meter-pct c-${levelOf(pct)}`}>{pct.toFixed(0)}%</span>
-      {detail && <span className="c-dim">{detail}</span>}
+    <div className="line">
+      <span className="row-label">{label}</span>
+      {children}
     </div>
   );
 }
 
-function HostPanel({ snap }: { snap: Snapshot<HostStats> | null }) {
-  const note = inlineState(snap, 'host stats unavailable');
-  const h = snap?.data;
+function NetworkPanel({ snap }: { snap: Snapshot<UnifiData> | null }) {
+  const note = inlineState(snap, 'unifi not configured · set UNIFI_URL and UNIFI_API_KEY');
+  const d = snap?.data;
+  const gw = d?.gateway;
   return (
-    <Box title="host" className="panel">
+    <Box title="network" hint={d?.site} className="panel">
       {note}
-      {h && (
+      <Stale snap={snap} />
+      {d && (
         <>
-          <Meter label="cpu" pct={h.cpuPct} detail={`${h.cpuCores} cores`} />
-          <Meter label="mem" pct={h.mem.usedPct} detail={`${fmtBytes(h.mem.usedBytes)}/${fmtBytes(h.mem.totalBytes)}`} />
-          {h.disks.slice(0, 4).map((d) => (
-            <Meter key={d.mount} label={d.name} pct={d.usedPct} detail={`${fmtBytes(d.usedBytes)}/${fmtBytes(d.totalBytes)}`} />
+          <Row label="wan">
+            <span className="c-ok">▼ {fmtBitrate(gw?.rxBps)}</span>
+            <span className="c-info">▲ {fmtBitrate(gw?.txBps)}</span>
+          </Row>
+          <Row label="clients">
+            <span>{d.clients.total}</span>
+            <span className="grow-text c-dim">
+              wifi {d.clients.wireless} · wired {d.clients.wired}
+              {d.clients.vpn > 0 && ` · vpn ${d.clients.vpn}`}
+              {d.clients.guests > 0 && ` · guests ${d.clients.guests}`}
+            </span>
+          </Row>
+          <Row label="devices">
+            <span className={d.devices.problems.length > 0 ? 'c-warn' : 'c-ok'}>
+              {d.devices.online}/{d.devices.total} online
+            </span>
+          </Row>
+          {d.devices.problems.slice(0, 3).map((p) => (
+            <div key={p.name} className="line">
+              <span className="c-err">●</span>
+              <span className="grow-text">{p.name}</span>
+              <span className="c-dim">{p.state}</span>
+            </div>
           ))}
-          {h.disks.length > 4 && <div className="c-dim">+{h.disks.length - 4} more · :disks</div>}
+          {d.devices.problems.length > 3 && <div className="c-dim">+{d.devices.problems.length - 3} more</div>}
+          {gw ? (
+            <Row label="gateway">
+              <span className="grow-text">{gw.model || gw.name}</span>
+              <span className="c-dim">
+                {gw.cpuPct !== null && `cpu ${Math.round(gw.cpuPct)}%`}
+                {gw.memPct !== null && ` · mem ${Math.round(gw.memPct)}%`}
+                {gw.uptimeSec !== null && ` · up ${fmtAge(gw.uptimeSec)}`}
+              </span>
+            </Row>
+          ) : (
+            <div className="c-dim">no gateway found on this site</div>
+          )}
         </>
       )}
     </Box>
@@ -44,7 +81,8 @@ function AlertsPanel({ snap, now }: { snap: Snapshot<AlertInfo[]> | null; now: n
   return (
     <Box title="alerts" count={snap?.data ? alerts.length : undefined} className="panel">
       {note}
-      {snap?.data && alerts.length === 0 && <Note tone="ok">✓ nothing firing</Note>}
+      <Stale snap={snap} />
+      {snap?.data && snap.ok && alerts.length === 0 && <Note tone="ok">✓ nothing firing</Note>}
       {alerts.slice(0, 5).map((a) => (
         <div key={a.id} className="line">
           <span className={`c-${SEVERITY_TONE[a.severity]}`}>● {SEVERITY_LABEL[a.severity]}</span>
@@ -53,6 +91,45 @@ function AlertsPanel({ snap, now }: { snap: Snapshot<AlertInfo[]> | null; now: n
         </div>
       ))}
       {alerts.length > 5 && <div className="c-dim">+{alerts.length - 5} more · :alerts</div>}
+    </Box>
+  );
+}
+
+function TorrentPanel({ snap, alertsClear }: { snap: Snapshot<TorrentData> | null; alertsClear: boolean }) {
+  const note = inlineState(snap, 'deluge not configured · set DELUGE_URL and DELUGE_PASSWORD');
+  const d = snap?.data;
+  return (
+    <Box title="torrents" count={d?.counts.total} className="panel">
+      {alertsClear && <div className="line c-ok">✓ no alerts</div>}
+      {note}
+      <Stale snap={snap} />
+      {d && (
+        <>
+          <div className="line">
+            <span className="c-ok">▼ {fmtBytes(d.downloadBytesPerSec)}/s</span>
+            <span className="c-info">▲ {fmtBytes(d.uploadBytesPerSec)}/s</span>
+            {d.freeBytes !== null && <span className="c-dim">{fmtBytes(d.freeBytes)} free</span>}
+          </div>
+          <div className="line">
+            <span className="grow-text c-dim">
+              downloading {d.counts.downloading} · seeding {d.counts.seeding} · paused {d.counts.paused}
+              {d.counts.queued > 0 && ` · queued ${d.counts.queued}`}
+              {d.counts.checking > 0 && ` · checking ${d.counts.checking}`}
+            </span>
+            {d.counts.error > 0 && <span className="c-err">error {d.counts.error}</span>}
+          </div>
+          {d.active.slice(0, 3).map((t) => (
+            <div key={t.name} className="line" title={`${t.name} · ${fmtBytes(t.sizeBytes)}`}>
+              <span className="grow-text">{t.name}</span>
+              <Bar pct={t.progressPct} width={8} level="info" />
+              <span className="torrent-pct">{Math.floor(t.progressPct)}%</span>
+              <span className="c-dim torrent-eta">{t.etaSec === null ? '' : fmtAge(t.etaSec)}</span>
+            </div>
+          ))}
+          {d.active.length === 0 && <div className="line c-dim">nothing downloading</div>}
+          {d.counts.downloading > 3 && <div className="c-dim">+{d.counts.downloading - 3} more downloading</div>}
+        </>
+      )}
     </Box>
   );
 }
@@ -83,8 +160,9 @@ function PlexPanel({ snap }: { snap: Snapshot<PlexData> | null }) {
 }
 
 interface HomeProps {
-  host: Snapshot<HostStats> | null;
+  unifi: Snapshot<UnifiData> | null;
   alerts: Snapshot<AlertInfo[]> | null;
+  torrents: Snapshot<TorrentData> | null;
   plex: Snapshot<PlexData> | null;
   containers: ContainerInfo[];
   containersSnap: Snapshot<ContainerInfo[]> | null;
@@ -97,18 +175,27 @@ interface HomeProps {
   now: number;
 }
 
-export function HomeView({ host, alerts, plex, containers, containersSnap, sel, onSelect, hostIp, sort, stats, filter, now }: HomeProps) {
+export function HomeView(props: HomeProps) {
+  const { unifi, alerts, torrents, plex, containers, containersSnap, sel, onSelect, hostIp, sort, stats, filter, now } = props;
   const error = containersSnap && !containersSnap.ok ? containersSnap.error : null;
   return (
     <div className="home">
       <div className="panels">
-        <HostPanel snap={host} />
-        <AlertsPanel snap={alerts} now={now} />
+        <NetworkPanel snap={unifi} />
+        {middlePanel(alerts, torrents) === 'alerts' ? (
+          <AlertsPanel snap={alerts} now={now} />
+        ) : (
+          <TorrentPanel snap={torrents} alertsClear={alerts?.configured === true} />
+        )}
         <PlexPanel snap={plex} />
       </div>
       <Box title="containers" hint={filter ? `/${filter}` : 'all'} count={containers.length} className="grow">
         {error && <Note tone="err">⚠ {error}</Note>}
-        {!containersSnap ? <Note>connecting…</Note> : <ContainersTable rows={containers} sel={sel} onSelect={onSelect} hostIp={hostIp} sort={sort} stats={stats} />}
+        {!containersSnap ? (
+          <Note>connecting…</Note>
+        ) : (
+          <ContainersTable rows={containers} sel={sel} onSelect={onSelect} hostIp={hostIp} sort={sort} stats={stats} />
+        )}
       </Box>
     </div>
   );

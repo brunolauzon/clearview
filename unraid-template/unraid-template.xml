@@ -24,7 +24,7 @@
   <Support>https://github.com/brunolauzon/clearview/issues</Support>
   <Project>https://github.com/brunolauzon/clearview</Project>
   <ReadMe>https://github.com/brunolauzon/clearview#readme</ReadMe>
-  <Overview>Terminal-style dashboard for your Unraid server, in the spirit of k9s. Discovers your Docker containers and opens their WebUIs on click, shows CPU, memory and per-disk usage, firing Grafana alerts, who is streaming on Plex (via Tautulli), and links to other devices on your network. Everything except the Docker socket and the disk mount is optional.</Overview>
+  <Overview>Terminal-style dashboard for your Unraid server, in the spirit of k9s. Discovers your Docker containers and opens their WebUIs on click, shows CPU, memory and per-disk usage, UniFi network stats, Deluge torrent stats, firing Grafana alerts, who is streaming on Plex (via Tautulli), and links to other devices on your network. Everything except the Docker socket and the disk mount is optional.</Overview>
   <Category>Tools:</Category>
   <WebUI>http://[IP]:[PORT:7878]/</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/brunolauzon/clearview/main/unraid-template/unraid-template.xml</TemplateURL>
@@ -45,6 +45,12 @@
   <Config Name="Tautulli API key" Target="TAUTULLI_API_KEY" Default="" Mode="" Description="Tautulli > Settings > Web Interface > API key." Type="Variable" Display="always" Required="false" Mask="true"/>
   <Config Name="Grafana URL" Target="GRAFANA_URL" Default="" Mode="" Description="Enables alerts. Example: http://192.168.1.10:3000" Type="Variable" Display="always" Required="false" Mask="false"/>
   <Config Name="Grafana token" Target="GRAFANA_TOKEN" Default="" Mode="" Description="Service account token with the Viewer role." Type="Variable" Display="always" Required="false" Mask="true"/>
+  <Config Name="UniFi console URL" Target="UNIFI_URL" Default="" Mode="" Description="Enables the network box. Your UniFi console, for example https://192.168.1.1" Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="UniFi API key" Target="UNIFI_API_KEY" Default="" Mode="" Description="UniFi Network, Settings, Control Plane, Integrations, Create API Key." Type="Variable" Display="always" Required="false" Mask="true"/>
+  <Config Name="Accept UniFi self-signed certificate" Target="UNIFI_INSECURE" Default="" Mode="" Description="Set to 1 if the console uses its own certificate. This skips certificate checking for UniFi only, so a device on your network could impersonate the console and capture the key." Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="UniFi site" Target="UNIFI_SITE" Default="" Mode="" Description="Only if you have more than one site." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Deluge web URL" Target="DELUGE_URL" Default="" Mode="" Description="Enables torrent stats while no alerts are firing. Example: http://192.168.1.10:8112" Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="Deluge web password" Target="DELUGE_PASSWORD" Default="" Mode="" Description="The password of the Deluge web UI." Type="Variable" Display="always" Required="false" Mask="true"/>
   <Config Name="Tautulli public URL" Target="TAUTULLI_PUBLIC_URL" Default="" Mode="" Description="Only if the browser must use a different address than the one above." Type="Variable" Display="advanced" Required="false" Mask="false"/>
   <Config Name="Grafana public URL" Target="GRAFANA_PUBLIC_URL" Default="" Mode="" Description="Only if the browser must use a different address than the one above. Alert links are rewritten to it." Type="Variable" Display="advanced" Required="false" Mask="false"/>
   <Config Name="Read-only config" Target="CONFIG_READONLY" Default="" Mode="" Description="Set to 1 to turn off editing settings in the UI. Clearview has no login, so use this if untrusted devices can reach it." Type="Variable" Display="advanced" Required="false" Mask="false"/>

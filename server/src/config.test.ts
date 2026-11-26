@@ -58,6 +58,29 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ CONFIG_PATH: bad })).toThrow(/links\.0\.url/);
   });
 
+  it('enables UniFi and Deluge only with both their address and secret, and verifies TLS unless told not to', () => {
+    const missing = path.join(dir, 'none.yaml');
+    expect(loadConfig({ CONFIG_PATH: missing, UNIFI_URL: 'https://192.168.1.1' }).unifi).toBeNull();
+    expect(loadConfig({ CONFIG_PATH: missing, DELUGE_URL: 'http://t:8112' }).deluge).toBeNull();
+    const cfg = loadConfig({
+      CONFIG_PATH: missing,
+      UNIFI_URL: 'https://192.168.1.1/',
+      UNIFI_API_KEY: 'k',
+      DELUGE_URL: 'http://t:8112/',
+      DELUGE_PASSWORD: 'p',
+    });
+    expect(cfg.unifi).toEqual({ url: 'https://192.168.1.1', apiKey: 'k', site: null, insecure: false });
+    expect(cfg.deluge).toEqual({ url: 'http://t:8112', password: 'p' });
+    const insecure = loadConfig({ CONFIG_PATH: missing, UNIFI_URL: 'https://x', UNIFI_API_KEY: 'k', UNIFI_INSECURE: '1', UNIFI_SITE: 'Home' });
+    expect(insecure.unifi).toMatchObject({ insecure: true, site: 'Home' });
+  });
+
+  it('shows demo alerts unless switched off', () => {
+    const missing = path.join(dir, 'none.yaml');
+    expect(loadConfig({ CONFIG_PATH: missing }).demoAlerts).toBe(true);
+    expect(loadConfig({ CONFIG_PATH: missing, CLEARVIEW_DEMO_ALERTS: '0' }).demoAlerts).toBe(false);
+  });
+
   it('treats DEMO flags as booleans', () => {
     const missing = path.join(dir, 'none.yaml');
     expect(loadConfig({ CONFIG_PATH: missing, CLEARVIEW_DEMO: '1' }).demo).toBe(true);

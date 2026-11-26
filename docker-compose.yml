@@ -18,6 +18,15 @@ services:
       TAUTULLI_API_KEY: ${TAUTULLI_API_KEY:-}
       GRAFANA_URL: ${GRAFANA_URL:-}
       GRAFANA_TOKEN: ${GRAFANA_TOKEN:-}
+      # Network box: a UniFi console and an API key (UniFi Network > Settings > Control Plane > Integrations).
+      UNIFI_URL: ${UNIFI_URL:-}
+      UNIFI_API_KEY: ${UNIFI_API_KEY:-}
+      UNIFI_SITE: ${UNIFI_SITE:-}
+      # 1 accepts the console's self-signed certificate (skips certificate checks for UniFi only).
+      UNIFI_INSECURE: ${UNIFI_INSECURE:-}
+      # Torrent stats, shown while no alerts are firing: the Deluge web UI and its password.
+      DELUGE_URL: ${DELUGE_URL:-}
+      DELUGE_PASSWORD: ${DELUGE_PASSWORD:-}
       # Set to 1 to turn off editing in the UI (the config view becomes read-only).
       CONFIG_READONLY: ${CONFIG_READONLY:-}
     volumes:

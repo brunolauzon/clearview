@@ -4,6 +4,7 @@ import path from 'node:path';
 import Fastify from 'fastify';
 import type { FileConfig } from '@clearview/shared';
 import { afterAll, describe, expect, it } from 'vitest';
+import { THEME_IDS } from '../../shared/themes';
 import { loadConfig, parseFileText, toYamlText, validateFileConfig } from './config';
 import { ConfigStore, isUnderMount, parseMountPoints, versionOf } from './configStore';
 import { registerConfigRoutes } from './routes/config';
@@ -86,6 +87,70 @@ describe('validation', () => {
     expect(!bad.ok && bad.issues[0]?.path).toBe('links.0.url');
     expect(validateFileConfig('nope').ok).toBe(false);
     expect(validateFileConfig([]).ok).toBe(false);
+  });
+});
+
+describe('theme and background', () => {
+  it('accepts every built-in theme and round-trips theme, background and accent', () => {
+    for (const id of THEME_IDS) expect(parseFileText(`theme: ${id}\n`).ok, id).toBe(true);
+    const text = toYamlText({ ...sample, theme: 'dracula', background: '#101820', accent: '#ff79c6' });
+    const back = parseFileText(text);
+    expect(back.ok && back.file).toMatchObject({ theme: 'dracula', background: '#101820', accent: '#ff79c6' });
+    expect(parseFileText('background: "#FDF6E3"\n')).toMatchObject({ ok: true, file: { background: '#fdf6e3' } });
+  });
+
+  it('rejects an unknown theme with the list of choices, and a bad or unquoted background', () => {
+    const theme = parseFileText('theme: draculaa\n');
+    expect(!theme.ok && theme.issues[0]).toMatchObject({ path: 'theme', message: expect.stringMatching(/choose one of: clearview, dracula/) });
+    for (const yaml of ['background: black\n', 'background: #101820\n']) {
+      const r = parseFileText(yaml);
+      expect(!r.ok && r.issues[0]?.path, yaml).toBe('background');
+    }
+  });
+
+  it('treats blanks from the UI as unset, applies a saved look live and clears it again', async () => {
+    const blank = validateFileConfig({ ...sample, theme: '', background: '' });
+    expect(blank.ok && blank.file.theme).toBeUndefined();
+
+    const { cfg, store } = await open('title: x\n');
+    expect((await store.save({ ...sample, theme: 'nord', background: '#000000' }, store.state().version)).ok).toBe(true);
+    expect(cfg).toMatchObject({ theme: 'nord', background: '#000000' });
+    expect((await store.save(sample, store.state().version)).ok).toBe(true);
+    expect(cfg).toMatchObject({ theme: null, background: null });
+  });
+});
+
+describe('weather and stocks', () => {
+  it('round-trips, upper-cases and de-duplicates symbols, and defaults the units', () => {
+    const r = parseFileText('weather:\n  location: Paris\nstocks: [aapl, ^gspc, AAPL, shop.to, btc-usd]\n');
+    expect(r.ok && r.file.weather).toEqual({ location: 'Paris', units: 'metric' });
+    expect(r.ok && r.file.stocks).toEqual(['AAPL', '^GSPC', 'SHOP.TO', 'BTC-USD']);
+    const text = toYamlText({ ...sample, weather: { location: 'Paris', units: 'imperial' }, stocks: ['^GSPC', 'EURUSD=X'] });
+    const back = parseFileText(text);
+    expect(back.ok && back.file.stocks).toEqual(['^GSPC', 'EURUSD=X']);
+    expect(back.ok && back.file.weather?.units).toBe('imperial');
+  });
+
+  it('rejects bad symbols, too many of them, a blank location and unknown units', () => {
+    const issue = (yaml: string) => {
+      const r = parseFileText(yaml);
+      return r.ok ? null : r.issues[0]!.path;
+    };
+    expect(issue('stocks: ["not a symbol"]\n')).toBe('stocks.0');
+    expect(issue('stocks: [A, B, C, D, E, F, G]\n')).toBe('stocks');
+    expect(issue('weather:\n  location: "  "\n')).toBe('weather.location');
+    expect(issue('weather:\n  location: x\n  units: kelvin\n')).toBe('weather.units');
+  });
+
+  it('is applied live when saved and cleared when saved without it', async () => {
+    const { cfg, store } = await open('title: x\n');
+    const next = { ...sample, weather: { location: 'Paris', units: 'metric' as const }, stocks: ['AAPL'] };
+    expect((await store.save(next, store.state().version)).ok).toBe(true);
+    expect(cfg.weather?.location).toBe('Paris');
+    expect(cfg.stocks).toEqual(['AAPL']);
+    expect((await store.save(sample, store.state().version)).ok).toBe(true);
+    expect(cfg.weather).toBeNull();
+    expect(cfg.stocks).toEqual([]);
   });
 });
 

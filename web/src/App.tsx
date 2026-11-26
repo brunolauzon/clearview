@@ -10,7 +10,7 @@ import { saveConfig, saveYaml, type SaveFn } from './lib/api';
 import { parseCommand, VIEWS, viewFromHash, type ViewId } from './lib/commands';
 import type { Editor } from './lib/editor';
 import { resolveUrl } from './lib/format';
-import { applyAccent, cacheAccent } from './lib/theme';
+import { applyLook, cacheLook } from './lib/theme';
 import { containerSearchText, filterBy, SORT_KEYS, sortContainers, type SortKey } from './lib/rows';
 import { AlertsView } from './views/Alerts';
 import { ConfigView } from './views/Config';
@@ -84,15 +84,18 @@ export default function App() {
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
-  // the accent colour comes from the server's config; depend on the value, not the whole meta object,
-  // so an unrelated settings change does not cancel a colour being previewed in the config view
+  // theme and colours come from the server's config; depend on the values, not the whole meta object,
+  // so an unrelated settings change does not cancel a look being previewed in the config view
+  const theme = s.meta?.theme ?? null;
+  const background = s.meta?.background ?? null;
   const accent = s.meta?.accent ?? null;
   const haveMeta = s.meta !== null;
   useEffect(() => {
     if (!haveMeta) return;
-    applyAccent(accent);
-    cacheAccent(accent);
-  }, [accent, haveMeta]);
+    const look = { theme, background, accent };
+    applyLook(look);
+    cacheLook(look);
+  }, [theme, background, accent, haveMeta]);
 
   useEffect(() => {
     document.title = s.meta?.title ? `${s.meta.title} · clearview` : 'clearview';
@@ -269,8 +272,9 @@ export default function App() {
     case 'home':
       body = (
         <HomeView
-          host={s.host}
+          unifi={s.unifi}
           alerts={s.alerts}
+          torrents={s.torrents}
           plex={s.plex}
           containers={containers}
           containersSnap={s.containers}
@@ -338,6 +342,8 @@ export default function App() {
         alertCount={alertList.length}
         criticalCount={alertList.filter((a) => a.severity === 'critical').length}
         streamCount={s.plex?.data?.streamCount ?? 0}
+        weather={s.weather}
+        quotes={s.quotes}
         onNavigate={go}
         onPrompt={setMode}
       />

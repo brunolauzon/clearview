@@ -7,6 +7,11 @@ import type {
   HostStats,
   LinkInfo,
   PlexData,
+  Quote,
+  TorrentData,
+  UnifiData,
+  WeatherConfig,
+  WeatherData,
 } from '@clearview/shared';
 import type { ContainerOverride, GroupRule, LinkConfig } from '../config';
 import { groupFor } from './docker';
@@ -63,6 +68,8 @@ interface DemoContainer {
 // The config demo mode starts with. It is editable in the UI like a real clearview.yaml, but lives in memory only.
 export const DEMO_FILE_CONFIG: FileConfig = {
   title: 'tower',
+  weather: { location: 'Springfield', units: 'metric' },
+  stocks: ['ACME', 'GLOBEX', 'INITECH', 'HOOLI'],
   groups: [
     { name: 'Infrastructure', containers: ['grafana', 'prometheus', 'node-exporter', 'pihole', 'mariadb', 'redis', 'watchtower', 'clearview'] },
     { name: 'Media', containers: ['plex', 'tautulli', 'overseerr'] },
@@ -287,6 +294,73 @@ export function demoStats(): Record<string, ContainerStats> {
     };
   });
   return out;
+}
+
+export function demoUnifi(): UnifiData {
+  const t = (Date.now() - started) / 1000;
+  const wave = (base: number, swing: number, period: number) => Math.round(base + swing * Math.sin(t / period));
+  return {
+    site: 'Default',
+    gateway: {
+      name: 'Dream Machine Pro',
+      model: 'UDM-Pro',
+      cpuPct: wave(14, 6, 9),
+      memPct: wave(52, 3, 23),
+      uptimeSec: 12 * 86400 + 5 * 3600 + Math.floor(t),
+      rxBps: wave(84_000_000, 40_000_000, 6),
+      txBps: wave(11_000_000, 6_000_000, 8),
+    },
+    clients: { total: 47, wired: 18, wireless: 27, vpn: 2, guests: 3 },
+    devices: { total: 9, online: 8, problems: [{ name: 'Garage AP', state: 'offline' }] },
+  };
+}
+
+export function demoTorrents(): TorrentData {
+  const t = (Date.now() - started) / 1000;
+  const gb = (n: number) => Math.round(n * GB);
+  return {
+    downloadBytesPerSec: Math.round(14_500_000 + 3_000_000 * Math.sin(t / 7)),
+    uploadBytesPerSec: Math.round(1_400_000 + 500_000 * Math.sin(t / 5)),
+    freeBytes: gb(3200),
+    counts: { total: 41, downloading: 2, seeding: 35, paused: 3, queued: 1, checking: 0, error: 0 },
+    active: [
+      { name: 'ubuntu-26.04-desktop-amd64.iso', progressPct: Math.min(99, 42 + t / 20), downloadBytesPerSec: 11_200_000, etaSec: 330, sizeBytes: gb(5.8) },
+      { name: 'debian-13.2.0-amd64-DVD-1.iso', progressPct: Math.min(99, 71 + t / 35), downloadBytesPerSec: 3_300_000, etaSec: 905, sizeBytes: gb(4.4) },
+    ],
+  };
+}
+
+export function demoWeather(config: WeatherConfig): WeatherData {
+  const toUnit = (c: number) => (config.units === 'imperial' ? Math.round((c * 9) / 5 + 32) : c);
+  return {
+    place: config.location,
+    temp: toUnit(14),
+    unit: config.units === 'imperial' ? 'F' : 'C',
+    code: 2,
+    summary: 'Partly cloudy',
+    isDay: true,
+    high: toUnit(17),
+    low: toUnit(8),
+  };
+}
+
+/** Stable made-up prices that drift a little, derived from the symbol so any symbol works. */
+export function demoQuotes(symbols: string[]): Quote[] {
+  const t = (Date.now() - started) / 1000;
+  return symbols.map((symbol) => {
+    const h = [...symbol].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) >>> 0, 11);
+    const previous = 20 + (h % 48000) / 100;
+    const change = previous * ((((h % 700) - 350) / 10000) + 0.002 * Math.sin(t / 20 + (h % 7)));
+    return {
+      symbol,
+      name: `${symbol} (demo)`,
+      price: previous + change,
+      change,
+      changePct: (change / previous) * 100,
+      currency: 'USD',
+      error: null,
+    };
+  });
 }
 
 const DEMO_DOWN = new Set(['Synology NAS']);

@@ -30,6 +30,45 @@ export function fmtCpu(pct: number | null | undefined): string {
   return pct < 10 ? `${pct.toFixed(1)}%` : `${Math.round(pct)}%`;
 }
 
+/** Two decimals, four for prices under 1 (small currencies and coins). */
+export function priceDigits(price: number): number {
+  return Math.abs(price) < 1 ? 4 : 2;
+}
+
+/** 7182.78 -> "7,182.78" */
+export function fmtPrice(price: number): string {
+  const digits = priceDigits(price);
+  return price.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+}
+
+/** A gain or loss with its sign: "+1.51", "-18.31", and plain "0.00" when it rounds to nothing. */
+export function fmtSigned(value: number, digits = 2): string {
+  const rounded = Number(value.toFixed(digits));
+  const body = Math.abs(rounded).toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  return `${rounded > 0 ? '+' : rounded < 0 ? '-' : ''}${body}`;
+}
+
+/** A text symbol for a WMO weather code. */
+export function weatherGlyph(code: number, isDay: boolean): string {
+  if (code <= 1) return isDay ? '☀' : '☾';
+  if (code === 2) return '⛅';
+  if (code === 3) return '☁';
+  if (code === 45 || code === 48) return '≋';
+  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return '❄';
+  if (code >= 95) return '⚡';
+  if (code >= 51) return '☂';
+  return '·';
+}
+
+/** Network throughput from bits per second: "84.0 Mbps", "1.2 Gbps"; "-" when unknown. */
+export function fmtBitrate(bps: number | null | undefined): string {
+  if (bps === null || bps === undefined) return '-';
+  if (bps >= 1e9) return `${(bps / 1e9).toFixed(1)} Gbps`;
+  if (bps >= 1e6) return `${(bps / 1e6).toFixed(1)} Mbps`;
+  if (bps >= 1e3) return `${Math.round(bps / 1e3)} kbps`;
+  return `${Math.round(bps)} bps`;
+}
+
 export function fmtKbps(kbps: number): string {
   if (kbps <= 0) return '0';
   return kbps >= 1000 ? `${(kbps / 1000).toFixed(1)} Mbps` : `${Math.round(kbps)} kbps`;

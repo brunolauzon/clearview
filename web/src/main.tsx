@@ -3,10 +3,11 @@ import '@fontsource/jetbrains-mono/latin-700.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
-import { applyAccent, loadCachedAccent } from './lib/theme';
+import { applyLook, loadCachedLook } from './lib/theme';
 import './theme.css';
 
-applyAccent(loadCachedAccent());
+const cached = loadCachedLook();
+if (cached) applyLook(cached);
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

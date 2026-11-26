@@ -1,7 +1,19 @@
 import fs from 'node:fs';
 import Fastify, { LogController } from 'fastify';
 import fastifyStatic from '@fastify/static';
-import type { AlertInfo, ContainerInfo, ContainerStats, HostStats, LinkInfo, Meta, PlexData } from '@clearview/shared';
+import type {
+  AlertInfo,
+  ContainerInfo,
+  ContainerStats,
+  HostStats,
+  LinkInfo,
+  Meta,
+  PlexData,
+  Quote,
+  TorrentData,
+  UnifiData,
+  WeatherData,
+} from '@clearview/shared';
 import { loadConfig, VERSION } from './config';
 import { ConfigStore } from './configStore';
 import { Hub, Topic } from './hub';
@@ -12,7 +24,23 @@ import { StatsCollector } from './sources/stats';
 import { fetchAlerts } from './sources/grafana';
 import { TautulliSource } from './sources/tautulli';
 import { LinkProber } from './sources/links';
-import { DEMO_FILE_CONFIG, demoAlerts, demoContainers, demoHost, demoLinks, demoPlex, demoStats } from './sources/demo';
+import { fetchQuotes } from './sources/quotes';
+import { WeatherSource } from './sources/weather';
+import { DelugeSource } from './sources/deluge';
+import { UnifiSource } from './sources/unifi';
+import {
+  DEMO_FILE_CONFIG,
+  demoAlerts,
+  demoContainers,
+  demoHost,
+  demoLinks,
+  demoPlex,
+  demoQuotes,
+  demoStats,
+  demoTorrents,
+  demoUnifi,
+  demoWeather,
+} from './sources/demo';
 import { errMsg } from './util';
 
 let cfg: ReturnType<typeof loadConfig>;
@@ -41,6 +69,9 @@ const tautulli = cfg.tautulli ? new TautulliSource(cfg.tautulli) : null;
 const grafana = cfg.grafana;
 const prober = new LinkProber(cfg.links);
 const stats = new StatsCollector(docker);
+const weather = new WeatherSource();
+const unifi = cfg.unifi ? new UnifiSource(cfg.unifi) : null;
+const deluge = cfg.deluge ? new DelugeSource(cfg.deluge) : null;
 
 /** The links topic has no source until at least one link is configured. */
 function linksSource(): (() => Promise<LinkInfo[]>) | null {
@@ -50,6 +81,21 @@ function linksSource(): (() => Promise<LinkInfo[]>) | null {
     await prober.probeAll();
     return prober.snapshot();
   };
+}
+
+/** Nothing is requested from outside services until a location or a symbol is configured. */
+function weatherSource(): (() => Promise<WeatherData>) | null {
+  const w = cfg.weather;
+  if (!w) return null;
+  if (cfg.demo) return async () => demoWeather(w);
+  return () => weather.collect(w.location, w.units);
+}
+
+function quotesSource(): (() => Promise<Quote[]>) | null {
+  const symbols = cfg.stocks;
+  if (symbols.length === 0) return null;
+  if (cfg.demo) return async () => demoQuotes(symbols);
+  return () => fetchQuotes(symbols);
 }
 
 const topics = {
@@ -64,8 +110,17 @@ const topics = {
   ),
   stats: new Topic<Record<string, ContainerStats>>('stats', hub, 5_000, cfg.demo ? async () => demoStats() : () => stats.collect()),
   plex: new Topic<PlexData>('plex', hub, 5_000, cfg.demo ? async () => demoPlex() : tautulli ? () => tautulli.collect() : null),
-  alerts: new Topic<AlertInfo[]>('alerts', hub, 30_000, cfg.demo ? async () => demoAlerts() : grafana ? () => fetchAlerts(grafana) : null),
+  alerts: new Topic<AlertInfo[]>(
+    'alerts',
+    hub,
+    30_000,
+    cfg.demo ? async () => (cfg.demoAlerts ? demoAlerts() : []) : grafana ? () => fetchAlerts(grafana) : null,
+  ),
+  unifi: new Topic<UnifiData>('unifi', hub, 15_000, cfg.demo ? async () => demoUnifi() : unifi ? () => unifi.collect() : null),
+  torrents: new Topic<TorrentData>('torrents', hub, 10_000, cfg.demo ? async () => demoTorrents() : deluge ? () => deluge.collect() : null),
   links: new Topic<LinkInfo[]>('links', hub, 30_000, linksSource()),
+  weather: new Topic<WeatherData>('weather', hub, 600_000, weatherSource()),
+  quotes: new Topic<Quote[]>('quotes', hub, 60_000, quotesSource()),
 };
 
 function buildMeta(): Meta {
@@ -75,6 +130,8 @@ function buildMeta(): Meta {
     demo: cfg.demo,
     hostIp: cfg.hostIp,
     groups: cfg.groups.map((g) => g.name),
+    theme: cfg.theme,
+    background: cfg.background,
     accent: cfg.accent,
     tautulliUrl: cfg.tautulli ? (cfg.tautulli.publicUrl ?? cfg.tautulli.url) : cfg.demo ? 'http://[IP]:8181' : null,
     grafanaUrl: cfg.grafana ? (cfg.grafana.publicUrl ?? cfg.grafana.url) : cfg.demo ? 'http://[IP]:3000' : null,
@@ -89,6 +146,8 @@ hub.publish('config', store.state());
 store.onChange(() => {
   prober.setLinks(cfg.links);
   topics.links.reconfigure(linksSource());
+  topics.weather.reconfigure(weatherSource());
+  topics.quotes.reconfigure(quotesSource());
   void topics.containers.refresh();
   hub.publish('meta', buildMeta());
   hub.publish('config', store.state());
@@ -137,6 +196,8 @@ app.log.info(
     docker: cfg.dockerHost,
     tautulli: Boolean(cfg.tautulli),
     grafana: Boolean(cfg.grafana),
+    unifi: Boolean(cfg.unifi),
+    deluge: Boolean(cfg.deluge),
     links: cfg.links.length,
     hostIp: cfg.hostIp ?? '(browser hostname)',
     config: store.state().writable ? cfg.configPath : `${cfg.configPath} (read-only)`,
