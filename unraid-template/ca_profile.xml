@@ -1,0 +1,24 @@
+<CommunityApplications>
+  <!-- Required profile. Markdown is supported. -->
+  <Profile>
+    **Clearview** is a terminal-style dashboard for your Unraid server, in the spirit of k9s. It discovers your Docker containers and opens their WebUIs on click, shows CPU, memory and per-disk usage, live CPU and memory for every container, firing Grafana alerts, who is streaming on Plex (through Tautulli), and links to other devices on your network.
+
+    You change its settings in the UI: add links, group containers into categories like Infrastructure and Media, rename or hide containers, and pick your own accent colour. There is no config file to edit by hand.
+
+    This repository maintains one Docker app, **clearview**. Everything except the Docker socket and the disk mount is optional.
+
+    Support: please open an issue on [GitHub](https://github.com/brunolauzon/clearview/issues).
+  </Profile>
+  <!-- Optional icon -->
+  <Icon>https://raw.githubusercontent.com/brunolauzon/clearview/main/assets/icon.png</Icon>
+  <!-- Optional web page -->
+  <WebPage>https://github.com/brunolauzon/clearview</WebPage>
+  <!-- Optional photos. Add more with more Photo tags. -->
+  <Photo>https://raw.githubusercontent.com/brunolauzon/clearview/main/docs/screenshot-demo.png</Photo>
+  <!-- Not set yet, add if you want them:
+       Forum        link to a support topic on the Unraid forums
+       Discord      a discord.gg invite link
+       DonateLink   for example a GitHub Sponsors page
+       DonateText   short text shown next to the donate link
+       Video        a video URL, YouTube recommended (repeatable) -->
+</CommunityApplications>
