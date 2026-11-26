@@ -183,3 +183,7 @@ Layout: `shared/` API types, `server/src/sources/` one file per data source, `we
 ## Not built yet
 
 Container start/stop and logs, disk temperatures and SMART, Unraid array state, pending (not yet firing) Grafana alerts.
+
+## License
+
+[MIT](LICENSE). The bundled JetBrains Mono font is licensed separately under the [SIL Open Font License 1.1](https://github.com/JetBrains/JetBrainsMono/blob/master/OFL.txt).

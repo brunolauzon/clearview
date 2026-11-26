@@ -2,6 +2,7 @@
   "name": "clearview",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "description": "Terminal-style dashboard for an Unraid homelab: Docker autodiscovery, host stats, Grafana alerts, Plex via Tautulli, custom links.",
   "type": "module",
   "engines": {
