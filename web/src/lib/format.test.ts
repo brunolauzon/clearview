@@ -13,6 +13,7 @@ import {
   resolveUrl,
   shortImage,
   shortUrl,
+  siteName,
   weatherKind,
 } from './format';
 
@@ -127,5 +128,13 @@ describe('shortUrl and shortImage', () => {
     expect(shortImage('grafana/grafana')).toBe('grafana/grafana');
     expect(shortImage('redis:7-alpine')).toBe('redis');
     expect(shortImage('localhost:5000/app:1')).toBe('app');
+  });
+});
+
+describe('siteName', () => {
+  it('drops the scheme, www and path', () => {
+    expect(siteName('https://www.youtube.com/feed')).toBe('youtube.com');
+    expect(siteName('http://192.168.1.5:8080/x')).toBe('192.168.1.5:8080');
+    expect(siteName('not a url')).toBe('not a url');
   });
 });

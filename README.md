@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshot-demo.png" alt="The clearview dashboard with demo data: the server name beside CPU, memory and disk meters, the date, weather and stock prices; a menu of views with problem counts; network, alerts and Plex boxes; and containers grouped by category with live CPU and memory" width="800">
+  <img src="docs/screenshot-demo.png" alt="The clearview dashboard with demo data: the server name beside CPU, memory and disk meters, with links and letter shortcuts under them, the date, weather and stock prices; a menu of views with problem counts; network, alerts and Plex boxes; and containers grouped by category with live CPU and memory" width="800">
   <br>
   <sub>Demo data. Try it yourself with <code>npm run dev:demo</code>.</sub>
 </p>
@@ -23,7 +23,7 @@
 - **Torrents**: Deluge speeds and active downloads, shown while no alerts are firing
 - **Alerts**: firing alerts from Grafana
 - **Plex**: live streams, transcodes, bandwidth, recently added media, libraries, history and top stats (through Tautulli)
-- **Links**: other devices on your network, with an up/down dot
+- **Links**: other devices on your network, with an up/down dot, in the header of every page along with your letter shortcuts
 - **Edit settings in the UI**: add links, make categories, rename or hide containers. No config file to touch
 - **Themes**: Dracula, Nord, Gruvbox, Tokyo Night, Catppuccin, One Dark, Monokai, Solarized and more, plus your own background and accent colours, previewed live
 - **Weather and stocks**: the date, local weather and a small stock ticker in the header
@@ -85,16 +85,17 @@ The menu under the header lists every view with its number key. A count appears 
 
 The browser tab's title also starts with the number of firing alerts, for example `(3) tower · clearview`.
 
+- **Your links:** the links and letter shortcuts you add are listed under the meters on every page. Click one to open it in a new tab. A link's dot is green when it is up, red when it is down and grey when it is not checked. The header shows the first ten of each, with a button to see the rest; on a phone, swipe the row.
 - **Mouse and touch:** click a container to open its WebUI, or **edit** on its row to change how it appears. Click the name, state, age, CPU or memory heading to sort the containers by it, and again to go back to categories. A box title with `›` on the home page opens that view.
 - **Keyboard:** `:` lists the views as you type (arrows choose, tab completes) and `/` filters the list you are on. Both also have buttons in the bottom bar. See [Keys](#keys).
 - **Lost connection:** if the page loses the server, a banner says what time the figures are from, and it reconnects on its own.
 
 ### On a phone
 
-On a narrow screen the menu moves to the bottom, the boxes stack, and the containers table keeps the name, state, WebUI link and edit button.
+On a narrow screen the menu moves to the bottom, your links become one row to swipe, the boxes stack, and the containers table keeps the name, state, WebUI link and edit button.
 
 <p align="center">
-  <img src="docs/screenshot-phone.png" alt="clearview on a phone with demo data: the wordmark, two columns of CPU, memory and disk meters, the network, alerts and Plex boxes stacked, and the menu along the bottom" width="300">
+  <img src="docs/screenshot-phone.png" alt="clearview on a phone with demo data: the wordmark, two columns of CPU, memory and disk meters, a row of links, the network, alerts and Plex boxes stacked, and the menu along the bottom" width="300">
 </p>
 
 ## Changing settings in the UI
@@ -283,7 +284,7 @@ A source with no config shows setup instructions where it would appear. A failin
 
 ### Your own shortcuts
 
-Give a letter a web address and pressing it on the dashboard opens that site in a new tab. Add them in the config view (`:config`, shortcuts), where `youtube.com` is enough, or in `clearview.yaml`, where the address needs `http://` or `https://`:
+Give a letter a web address and pressing it on the dashboard opens that site in a new tab. Shortcuts are also listed in the header, where you can click them. Add them in the config view (`:config`, shortcuts), where `youtube.com` is enough, or in `clearview.yaml`, where the address needs `http://` or `https://`:
 
 ```yaml
 shortcuts:

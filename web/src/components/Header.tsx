@@ -1,17 +1,22 @@
-import type { HostStats, Quote, Snapshot, WeatherData } from '@clearview/shared';
+import type { HostStats, LinkInfo, Quote, Snapshot, WeatherData } from '@clearview/shared';
 import type { ViewId } from '../lib/commands';
+import type { ShortcutEntry } from '../lib/configEdit';
 import { fmtAge, fmtBytes } from '../lib/format';
 import { headerDisks } from '../lib/panels';
 import { Bar } from './Bar';
 import { HeaderWidget } from './HeaderWidget';
 import { Logo } from './Logo';
+import { QuickLinks } from './QuickLinks';
 
 interface HeaderProps {
   host: HostStats | null;
   weather: Snapshot<WeatherData> | null;
   quotes: Snapshot<Quote[]> | null;
+  links: LinkInfo[];
+  shortcuts: ShortcutEntry[];
   onNavigate: (view: ViewId) => void;
   onSetUpWidget: () => void;
+  onEditShortcuts: () => void;
 }
 
 /** "name ▮▮▮░░ 42%  detail"; a button when there is somewhere to go from it */
@@ -35,7 +40,7 @@ function Meter({ name, pct, detail, onClick }: { name: string; pct: number | nul
   );
 }
 
-export function Header({ host, weather, quotes, onNavigate, onSetUpWidget }: HeaderProps) {
+export function Header({ host, weather, quotes, links, shortcuts, onNavigate, onSetUpWidget, onEditShortcuts }: HeaderProps) {
   const disks = headerDisks(host?.disks ?? []);
   return (
     <header className="hdr">
@@ -52,17 +57,21 @@ export function Header({ host, weather, quotes, onNavigate, onSetUpWidget }: Hea
         </div>
       </div>
 
-      <div className="meters">
-        <Meter name="cpu" pct={host?.cpuPct ?? null} detail={host && `${host.cpuCores} cores`} />
-        <Meter name="mem" pct={host?.mem.usedPct ?? null} detail={host && `${fmtBytes(host.mem.usedBytes)}/${fmtBytes(host.mem.totalBytes)}`} />
-        {disks.shown.map((d) => (
-          <Meter key={d.mount} name={d.name} pct={d.usedPct} detail={`${fmtBytes(d.usedBytes)}/${fmtBytes(d.totalBytes)}`} onClick={() => onNavigate('disks')} />
-        ))}
-        {disks.hidden > 0 && (
-          <button type="button" className="text-btn meters-more" onClick={() => onNavigate('disks')}>
-            +{disks.hidden} more disk{disks.hidden === 1 ? '' : 's'}
-          </button>
-        )}
+      <div className="hdr-mid">
+        <div className="meters">
+          <Meter name="cpu" pct={host?.cpuPct ?? null} detail={host && `${host.cpuCores} cores`} />
+          <Meter name="mem" pct={host?.mem.usedPct ?? null} detail={host && `${fmtBytes(host.mem.usedBytes)}/${fmtBytes(host.mem.totalBytes)}`} />
+          {disks.shown.map((d) => (
+            <Meter key={d.mount} name={d.name} pct={d.usedPct} detail={`${fmtBytes(d.usedBytes)}/${fmtBytes(d.totalBytes)}`} onClick={() => onNavigate('disks')} />
+          ))}
+          {disks.hidden > 0 && (
+            <button type="button" className="text-btn meters-more" onClick={() => onNavigate('disks')}>
+              +{disks.hidden} more disk{disks.hidden === 1 ? '' : 's'}
+            </button>
+          )}
+        </div>
+
+        <QuickLinks links={links} shortcuts={shortcuts} onNavigate={onNavigate} onEditShortcuts={onEditShortcuts} />
       </div>
 
       <HeaderWidget weather={weather} quotes={quotes} onConfigure={onSetUpWidget} />

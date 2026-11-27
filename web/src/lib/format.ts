@@ -109,6 +109,11 @@ export function resolveUrl(url: string | null, hostIp: string | null, fallbackHo
   return url.replace(/\[IP\]/gi, safe);
 }
 
+/** A short name for a website: "https://www.youtube.com/feed" -> "youtube.com" */
+export function siteName(url: string): string {
+  return shortUrl(url).replace(/^www\./, '');
+}
+
 /** "http://192.168.1.10:8989/path" -> "192.168.1.10:8989" */
 export function shortUrl(url: string | null): string {
   if (!url) return '-';

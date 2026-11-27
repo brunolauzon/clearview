@@ -10,7 +10,7 @@ import { useAfter, useNow } from './hooks/useBucket';
 import { useStream } from './hooks/useStream';
 import { saveConfig, saveYaml, type SaveFn } from './lib/api';
 import { VIEWS, viewFromHash, type ViewId } from './lib/commands';
-import { shortcutFor } from './lib/configEdit';
+import { shortcutEntries, shortcutFor, type ShortcutEntry } from './lib/configEdit';
 import type { Editor } from './lib/editor';
 import { resolveUrl } from './lib/format';
 import { GLYPH } from './lib/glyphs';
@@ -27,6 +27,8 @@ import { LinksView } from './views/Links';
 import { PlexView } from './views/Plex';
 
 const NO_GROUPS: string[] = [];
+const NO_LINKS: LinkInfo[] = [];
+const NO_SHORTCUTS: ShortcutEntry[] = [];
 
 /** Which list the selection cursor moves over in each view. */
 type ListKind = 'containers' | 'alerts' | 'streams' | 'disks' | 'links' | 'cameras';
@@ -513,7 +515,16 @@ export default function App() {
       >
         skip to content
       </a>
-      <Header host={s.host?.data ?? null} weather={s.weather} quotes={s.quotes} onNavigate={go} onSetUpWidget={() => openConfig('general')} />
+      <Header
+        host={s.host?.data ?? null}
+        weather={s.weather}
+        quotes={s.quotes}
+        links={s.links?.data ?? NO_LINKS}
+        shortcuts={config ? shortcutEntries(config.config) : NO_SHORTCUTS}
+        onNavigate={go}
+        onSetUpWidget={() => openConfig('general')}
+        onEditShortcuts={() => openConfig('shortcuts')}
+      />
       <Nav view={view} badges={badges} onNavigate={go} />
       {offline && (
         <div className="banner" role="alert">

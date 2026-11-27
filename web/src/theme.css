@@ -259,6 +259,48 @@ button.meter:hover .meter-name {
   justify-self: start;
 }
 
+.hdr-mid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25em;
+  min-width: 0;
+}
+
+/* the user's own links, then letter shortcuts, in the room under the meters */
+.quick {
+  min-width: 0;
+}
+
+.quick ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 2.5ch;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.quick li {
+  display: flex;
+}
+
+.quick a {
+  /* keeps the hidden "up / down" text inside the swipe row on phones, or it widens the page */
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7ch;
+  min-height: 1.7em;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+
+.quick a:hover .quick-name {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 /* date, weather and stock ticker */
 .hdr-widget {
   display: flex;
@@ -1590,6 +1632,10 @@ legend {
   .meter .bar { --cells: 6 !important; }
   .meter-detail { display: none; }
 
+  /* one row to swipe through, so the links do not push the page down */
+  .quick { overflow-x: auto; padding: 2px 0; scrollbar-width: none; }
+  .quick ul { flex-wrap: nowrap; width: max-content; }
+
   .nav { position: fixed; right: 0; bottom: 0; left: 0; z-index: 40; padding: 0 0 env(safe-area-inset-bottom); border-top: 1px solid var(--border); border-bottom: 0; background: var(--bg); }
   /* the fade says there is more of the menu to the side */
   .nav ul { padding: 2px 4ch 0 1ch; -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 4ch), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 4ch), transparent); }
@@ -1654,6 +1700,8 @@ legend {
   .meter { min-height: 28px; }
   .meters-more,
   .line-link { min-height: 32px; align-items: center; }
+  .quick a,
+  .quick .text-btn { min-height: 32px; }
   .home-button { padding: 4px 0; }
   .nav kbd { display: none; }
   .th-sort { min-height: 32px; }
