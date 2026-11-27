@@ -403,3 +403,37 @@ describe('config routes', () => {
     expect(res.statusCode).toBe(403);
   });
 });
+
+describe('shortcuts', () => {
+  it('reads letters as lower case, including y and n, and writes them back', () => {
+    const parsed = parseFileText('shortcuts:\n  y: https://youtube.com\n  N: http://192.168.1.5:8080/news\n');
+    expect(parsed.ok && parsed.file.shortcuts).toEqual({ y: 'https://youtube.com', n: 'http://192.168.1.5:8080/news' });
+    if (!parsed.ok) return;
+    const again = parseFileText(toYamlText(parsed.file));
+    expect(again.ok && again.file.shortcuts).toEqual(parsed.file.shortcuts);
+  });
+
+  it('leaves the section out when there are none', () => {
+    const empty = validateFileConfig({ shortcuts: {}, links: [], groups: [], hide: [], overrides: {} });
+    expect(empty.ok && 'shortcuts' in empty.file).toBe(false);
+  });
+
+  const refused = (shortcuts: unknown) => {
+    const r = validateFileConfig({ shortcuts, links: [], groups: [], hide: [], overrides: {} });
+    return r.ok ? '' : r.issues.map((i) => `${i.path}: ${i.message}`).join('\n');
+  };
+
+  it('refuses letters the dashboard uses, anything but one letter, and repeats', () => {
+    expect(refused({ j: 'https://a.example' })).toMatch(/shortcuts\.j: "j" is already used/);
+    expect(refused({ G: 'https://a.example' })).toMatch(/"g" is already used/);
+    expect(refused({ yt: 'https://a.example' })).toMatch(/single letter/);
+    expect(refused({ '3': 'https://a.example' })).toMatch(/single letter/);
+    expect(refused({ y: 'https://a.example', Y: 'https://b.example' })).toMatch(/listed twice/);
+  });
+
+  it('only accepts web addresses', () => {
+    for (const bad of ['javascript:alert(1)', 'file:///etc/passwd', 'youtube.com', '', 'ftp://host']) {
+      expect(refused({ y: bad }), bad).toMatch(/web address/);
+    }
+  });
+});

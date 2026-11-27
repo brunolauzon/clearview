@@ -18,6 +18,14 @@ title: tower
 #   units: metric           # metric or imperial
 # stocks: [AAPL, ^GSPC, SHOP.TO, BTC-USD]
 
+# Letter shortcuts: press the letter on the dashboard to open the site in a new tab. Any letter
+# except a, d, e, g, i, j, k, o and s, which the dashboard uses.
+# shortcuts:
+#   y: https://youtube.com
+#   f: https://facebook.com
+#   l: https://linkedin.com
+#   r: https://reddit.com
+
 # Other devices on your network. `check` decides what the status dot means:
 #   http  any HTTP response counts as up (default; self-signed certs are fine)
 #   tcp   the port accepts a connection

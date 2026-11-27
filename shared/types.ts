@@ -159,6 +159,16 @@ export interface PlexTopStat {
   rows: { label: string; plays: number }[];
 }
 
+export interface PlexAddedItem {
+  id: string;
+  /** "Arrival (2016)", "Severance S02E01 - Title", "Andor - Season 2" */
+  title: string;
+  mediaType: string;
+  library: string;
+  /** epoch seconds */
+  addedAt: number;
+}
+
 export interface PlexData {
   streams: PlexStream[];
   streamCount: number;
@@ -168,6 +178,8 @@ export interface PlexData {
   wanBandwidthKbps: number;
   libraries: PlexLibrary[];
   history: PlexHistoryItem[];
+  /** newest first */
+  recent: PlexAddedItem[];
   top: PlexTopStat[];
 }
 
@@ -303,6 +315,8 @@ export interface FileConfig {
   background?: string;
   /** accent colour as #rrggbb, replacing the theme's */
   accent?: string;
+  /** lower-case letter -> web address it opens */
+  shortcuts?: Record<string, string>;
   links: ConfigLink[];
   groups: ConfigGroup[];
   hide: string[];

@@ -27,3 +27,15 @@ export function middlePanel(
   if (!alerts.ok) return 'alerts';
   return (alerts.data?.length ?? 0) > 0 ? 'alerts' : 'torrents';
 }
+
+/** Text lines the home Plex box holds before it grows taller than its neighbours. */
+const PLEX_LINES = 6;
+export const PLEX_STREAMS = 4;
+
+/** How many recently added titles fit under the streams in the home Plex box. Streams come first. */
+export function recentRoom(streams: number): number {
+  const status = 1; // "no active streams", or the transcode and bandwidth summary
+  const more = streams > PLEX_STREAMS ? 1 : 0;
+  const heading = 1;
+  return Math.max(0, PLEX_LINES - status - Math.min(streams, PLEX_STREAMS) - more - heading);
+}

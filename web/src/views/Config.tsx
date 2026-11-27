@@ -3,13 +3,23 @@ import type { ConfigIssue, ConfigState, ContainerInfo } from '@clearview/shared'
 import { Box, Note } from '../components/Box';
 import { Table, type Column } from '../components/Table';
 import type { SaveFn, SaveOutcome } from '../lib/api';
-import { containerEntries, moveGroup, removeContainer, removeGroup, removeLink, type ContainerEntry } from '../lib/configEdit';
+import {
+  containerEntries,
+  moveGroup,
+  removeContainer,
+  removeGroup,
+  removeLink,
+  removeShortcut,
+  shortcutEntries,
+  type ContainerEntry,
+  type ShortcutEntry,
+} from '../lib/configEdit';
 import type { Editor } from '../lib/editor';
 import { shortUrl } from '../lib/format';
 import { GeneralEditor } from './General';
 
-type Section = 'links' | 'categories' | 'containers' | 'general' | 'yaml';
-const SECTIONS: Section[] = ['links', 'categories', 'containers', 'general', 'yaml'];
+type Section = 'links' | 'categories' | 'containers' | 'shortcuts' | 'general' | 'yaml';
+const SECTIONS: Section[] = ['links', 'categories', 'containers', 'shortcuts', 'general', 'yaml'];
 
 interface ConfigViewProps {
   state: ConfigState | null;
@@ -34,7 +44,9 @@ export function ConfigView({ state, containers, active, onEdit, onSave, onSaveYa
   const links = config?.links ?? [];
   const groups = config?.groups ?? [];
   const entries = config ? containerEntries(config) : [];
-  const count = section === 'links' ? links.length : section === 'categories' ? groups.length : section === 'containers' ? entries.length : 0;
+  const shortcuts = config ? shortcutEntries(config) : [];
+  const rows = { links, categories: groups, containers: entries, shortcuts, general: [], yaml: [] };
+  const count = rows[section].length;
 
   useEffect(() => {
     setSel((i) => Math.min(i, Math.max(0, count - 1)));
@@ -47,7 +59,7 @@ export function ConfigView({ state, containers, active, onEdit, onSave, onSaveYa
   }, []);
 
   const writable = state?.writable ?? false;
-  const isList = section === 'links' || section === 'categories' || section === 'containers';
+  const isList = section !== 'general' && section !== 'yaml';
 
   /** Run a change made without a form (delete, reorder) and report a refusal. Returns whether it was saved. */
   const apply = useCallback(
@@ -63,6 +75,7 @@ export function ConfigView({ state, containers, active, onEdit, onSave, onSaveYa
     if (section === 'links') onEdit({ kind: 'link', index: null });
     else if (section === 'categories') onEdit({ kind: 'group', index: null });
     else if (section === 'containers') onEdit({ kind: 'container', name: null });
+    else if (section === 'shortcuts') onEdit({ kind: 'shortcut', key: null });
   }, [section, onEdit]);
 
   const edit = useCallback(() => {
@@ -72,6 +85,9 @@ export function ConfigView({ state, containers, active, onEdit, onSave, onSaveYa
     else if (section === 'containers') {
       const entry = entries[sel];
       if (entry) onEdit({ kind: 'container', name: entry.name });
+    } else if (section === 'shortcuts') {
+      const entry = shortcuts[sel];
+      if (entry) onEdit({ kind: 'shortcut', key: entry.key });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [section, sel, count, onEdit, state]);
@@ -80,7 +96,14 @@ export function ConfigView({ state, containers, active, onEdit, onSave, onSaveYa
   const remove = useCallback(() => {
     if (!config || count === 0) return;
     if (!writable) return say(state?.readOnlyReason ?? 'config is read-only');
-    const label = section === 'links' ? links[sel]?.name : section === 'categories' ? groups[sel]?.name : entries[sel]?.name;
+    const label =
+      section === 'links'
+        ? links[sel]?.name
+        : section === 'categories'
+          ? groups[sel]?.name
+          : section === 'shortcuts'
+            ? shortcuts[sel]?.key
+            : entries[sel]?.name;
     const key = `${section}:${label}`;
     if (armed !== key) {
       setArmed(key);
@@ -93,6 +116,7 @@ export function ConfigView({ state, containers, active, onEdit, onSave, onSaveYa
     if (section === 'links') void apply(removeLink(config, sel));
     else if (section === 'categories') void apply(removeGroup(config, sel));
     else if (section === 'containers' && entries[sel]) void apply(removeContainer(config, entries[sel]!.name));
+    else if (section === 'shortcuts' && shortcuts[sel]) void apply(removeShortcut(config, shortcuts[sel]!.key));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config, count, writable, section, sel, armed, say, state, apply]);
 
@@ -252,6 +276,20 @@ export function ConfigView({ state, containers, active, onEdit, onSave, onSaveYa
           </>
         )}
 
+        {section === 'shortcuts' && (
+          <>
+            <Table
+              cols={SHORTCUT_COLS}
+              rows={shortcuts}
+              rowKey={(s) => s.key}
+              sel={sel}
+              onSelect={setSel}
+              empty={<Note>no shortcuts yet. Press a to make a letter open a website, for example y for youtube.com.</Note>}
+            />
+            {shortcuts.length > 0 && <p className="c-dim section-note">Press the letter on any page of the dashboard to open its address in a new tab.</p>}
+          </>
+        )}
+
         {section === 'general' && <GeneralEditor key={state.version} state={state} onSave={onSave} say={say} />}
 
         {section === 'yaml' && <YamlEditor state={state} writable={writable} onSaveYaml={onSaveYaml} say={say} boxRef={yamlBox} />}
@@ -293,6 +331,11 @@ const CONTAINER_COLS: Column<ContainerEntry>[] = [
   { id: 'group', title: 'category', width: '14ch', render: (e) => e.override.group ?? none },
   { id: 'url', title: 'webui', width: 'minmax(12ch, 2fr)', min: 'lg', render: (e) => (e.override.url ? shortUrl(e.override.url) : none) },
   { id: 'hidden', title: 'hidden', width: '7ch', render: (e) => (e.hidden ? <span className="c-warn">yes</span> : none) },
+];
+
+const SHORTCUT_COLS: Column<ShortcutEntry>[] = [
+  { id: 'key', title: 'key', width: '5ch', render: (s) => <span className="c-accent">{s.key}</span> },
+  { id: 'url', title: 'opens', width: '1fr', render: (s) => <span className="c-accent">↗ {shortUrl(s.url)}</span> },
 ];
 
 // ---------- raw yaml ----------

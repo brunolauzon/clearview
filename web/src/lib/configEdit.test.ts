@@ -9,7 +9,13 @@ import {
   removeContainer,
   removeGroup,
   removeLink,
+  removeShortcut,
   setContainer,
+  setShortcut,
+  shortcutEntries,
+  shortcutFor,
+  shortcutProblem,
+  webAddress,
   upsertGroup,
   upsertLink,
 } from './configEdit';
@@ -115,5 +121,41 @@ describe('per-container settings', () => {
     const entries = containerEntries(base());
     expect(entries.map((e) => e.name)).toEqual(['plex', 'radarr', 'watchtower']);
     expect(entries.map((e) => e.hidden)).toEqual([false, false, true]);
+  });
+});
+
+describe('shortcuts', () => {
+  const base: FileConfig = { links: [], groups: [], hide: [], overrides: {}, shortcuts: { y: 'https://youtube.com', f: 'https://facebook.com' } };
+
+  it('lists them in letter order and finds one whatever the case', () => {
+    expect(shortcutEntries(base).map((s) => s.key)).toEqual(['f', 'y']);
+    expect(shortcutFor(base, 'y')).toBe('https://youtube.com');
+    expect(shortcutFor(base, 'Y')).toBe('https://youtube.com');
+    expect(shortcutFor(base, 'z')).toBeNull();
+    expect(shortcutFor(base, 'Enter')).toBeNull();
+    expect(shortcutFor(undefined, 'y')).toBeNull();
+  });
+
+  it('explains a letter that cannot be used', () => {
+    expect(shortcutProblem(base, 'r', null)).toBeNull();
+    expect(shortcutProblem(base, 'y', 'y')).toBeNull(); // keeping its own letter
+    expect(shortcutProblem(base, 'Y', null)).toMatch(/already opens https:\/\/youtube.com/);
+    expect(shortcutProblem(base, 'f', 'y')).toMatch(/already opens/);
+    expect(shortcutProblem(base, 'k', null)).toMatch(/used by the dashboard/);
+    expect(shortcutProblem(base, '?', null)).toMatch(/single letter/);
+  });
+
+  it('adds https:// to a bare address only', () => {
+    expect(webAddress(' youtube.com ')).toBe('https://youtube.com');
+    expect(webAddress('http://192.168.1.2:8080/x')).toBe('http://192.168.1.2:8080/x');
+    expect(webAddress('ftp://host')).toBe('ftp://host'); // left for the server to refuse
+    expect(webAddress('')).toBe('');
+  });
+
+  it('adds, moves to another letter and removes without touching the input', () => {
+    expect(setShortcut(base, null, 'R', 'https://reddit.com').shortcuts).toMatchObject({ r: 'https://reddit.com' });
+    expect(setShortcut(base, 'y', 'v', 'https://youtube.com').shortcuts).toEqual({ v: 'https://youtube.com', f: 'https://facebook.com' });
+    expect(removeShortcut(base, 'f').shortcuts).toEqual({ y: 'https://youtube.com' });
+    expect(Object.keys(base.shortcuts!)).toEqual(['y', 'f']);
   });
 });

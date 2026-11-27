@@ -2,7 +2,7 @@ import type { AlertInfo, ContainerInfo, PlexData, Snapshot, TorrentData, UnifiDa
 import { Bar } from '../components/Bar';
 import { Box, Note } from '../components/Box';
 import { fmtAge, fmtAgo, fmtBitrate, fmtBytes, fmtKbps } from '../lib/format';
-import { middlePanel } from '../lib/panels';
+import { middlePanel, PLEX_STREAMS, recentRoom } from '../lib/panels';
 import type { SortKey, StatsMap } from '../lib/rows';
 import { SEVERITY_LABEL, SEVERITY_TONE } from './Alerts';
 import { ContainersTable } from './Containers';
@@ -135,9 +135,10 @@ function TorrentPanel({ snap, alertsClear }: { snap: Snapshot<TorrentData> | nul
   );
 }
 
-function PlexPanel({ snap }: { snap: Snapshot<PlexData> | null }) {
+function PlexPanel({ snap, now }: { snap: Snapshot<PlexData> | null; now: number }) {
   const note = inlineState(snap, 'tautulli not configured · set TAUTULLI_URL');
   const d = snap?.data;
+  const recent = d ? d.recent.slice(0, recentRoom(d.streams.length)) : [];
   return (
     <Box title="plex" count={d ? d.streamCount : undefined} className="panel">
       {note}
@@ -147,7 +148,7 @@ function PlexPanel({ snap }: { snap: Snapshot<PlexData> | null }) {
           {d.transcodeCount} transcoding · {fmtKbps(d.totalBandwidthKbps)}
         </div>
       )}
-      {d?.streams.slice(0, 4).map((s) => (
+      {d?.streams.slice(0, PLEX_STREAMS).map((s) => (
         <div key={s.id} className="line">
           <span className={s.state === 'playing' ? 'c-ok' : 'c-warn'}>{s.state === 'playing' ? '▶' : '❚❚'}</span>
           <span className="c-accent user">{s.user}</span>
@@ -155,7 +156,19 @@ function PlexPanel({ snap }: { snap: Snapshot<PlexData> | null }) {
           <span className="c-dim">{Math.round(s.progressPct)}%</span>
         </div>
       ))}
-      {d && d.streams.length > 4 && <div className="c-dim">+{d.streams.length - 4} more · :plex</div>}
+      {d && d.streams.length > PLEX_STREAMS && <div className="c-dim">+{d.streams.length - PLEX_STREAMS} more · :plex</div>}
+      {recent.length > 0 && (
+        <>
+          <div className="line c-dim">recently added</div>
+          {recent.map((item) => (
+            <div key={item.id} className="line">
+              <span className="c-info">+</span>
+              <span className="grow-text">{item.title}</span>
+              <span className="c-dim">{fmtAgo(item.addedAt, now)}</span>
+            </div>
+          ))}
+        </>
+      )}
     </Box>
   );
 }
@@ -188,7 +201,7 @@ export function HomeView(props: HomeProps) {
         ) : (
           <TorrentPanel snap={torrents} alertsClear={alerts?.configured === true} />
         )}
-        <PlexPanel snap={plex} />
+        <PlexPanel snap={plex} now={now} />
       </div>
       <Box title="containers" hint={filter ? `/${filter}` : 'all'} count={containers.length} className="grow">
         {error && <Note tone="err">⚠ {error}</Note>}

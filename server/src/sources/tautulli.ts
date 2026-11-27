@@ -1,4 +1,5 @@
 import type {
+  PlexAddedItem,
   PlexData,
   PlexHistoryItem,
   PlexLibrary,
@@ -95,6 +96,40 @@ export function mapHistory(data: Obj): PlexHistoryItem[] {
   }));
 }
 
+/** One readable name per new item. Plex groups new episodes into a season or a whole show. */
+function addedTitle(r: Obj): string {
+  const title = str(r.title);
+  const join = (...parts: string[]) => parts.filter(Boolean).join(' - ');
+  const tag = (letter: string, v: unknown) => (str(v) ? `${letter}${str(v).padStart(2, '0')}` : '');
+  switch (str(r.media_type)) {
+    case 'movie':
+      return title && str(r.year) ? `${title} (${str(r.year)})` : title;
+    case 'episode': {
+      const number = tag('S', r.parent_media_index) + tag('E', r.media_index);
+      return join([str(r.grandparent_title), number].filter(Boolean).join(' '), title);
+    }
+    case 'season':
+    case 'album':
+      return join(str(r.parent_title), title);
+    case 'track':
+      return join(str(r.grandparent_title), title);
+    default:
+      return title;
+  }
+}
+
+export function mapRecentlyAdded(data: Obj): PlexAddedItem[] {
+  return ((Array.isArray(data.recently_added) ? data.recently_added : []) as Obj[])
+    .map((r, i) => ({
+      id: str(r.rating_key) || String(i),
+      title: addedTitle(r) || str(r.full_title) || 'unknown',
+      mediaType: str(r.media_type),
+      library: str(r.library_name),
+      addedAt: num(r.added_at),
+    }))
+    .sort((a, b) => b.addedAt - a.addedAt);
+}
+
 const TOP_STATS: Record<string, { title: string; label: (r: Obj) => string }> = {
   top_users: { title: 'top users', label: (r) => str(r.friendly_name || r.user) },
   top_movies: { title: 'top movies', label: (r) => str(r.title) },
@@ -126,7 +161,13 @@ interface TautulliEnvelope<T> {
 const SLOW_TTL_MS = 60_000;
 
 export class TautulliSource {
-  private slow: { at: number; libraries: PlexLibrary[]; history: PlexHistoryItem[]; top: PlexTopStat[] } | null = null;
+  private slow: {
+    at: number;
+    libraries: PlexLibrary[];
+    history: PlexHistoryItem[];
+    recent: PlexAddedItem[];
+    top: PlexTopStat[];
+  } | null = null;
 
   constructor(private cfg: NonNullable<AppConfig['tautulli']>) {}
 
@@ -137,16 +178,20 @@ export class TautulliSource {
     return body.response.data;
   }
 
-  /** Libraries, history and top stats change slowly: refresh at most once a minute, keep stale values on error. */
+  /** Libraries, history, new additions and top stats change slowly: refresh at most once a minute, keep stale values on error. */
   private async slowData(): Promise<NonNullable<TautulliSource['slow']>> {
     if (this.slow && Date.now() - this.slow.at < SLOW_TTL_MS) return this.slow;
     try {
-      const [libraries, history, top] = await Promise.all([
+      const [libraries, history, top, recent] = await Promise.all([
         this.api<unknown>('get_libraries'),
         this.api<Obj>('get_history', { length: '8' }),
         this.api<unknown>('get_home_stats', { time_range: '30', stats_type: 'plays', stats_count: '5' }),
+        // a bonus: if this one fails, keep the last list and still report everything else
+        this.api<Obj>('get_recently_added', { count: '10' })
+          .then(mapRecentlyAdded)
+          .catch(() => this.slow?.recent ?? []),
       ]);
-      this.slow = { at: Date.now(), libraries: mapLibraries(libraries), history: mapHistory(history), top: mapHomeStats(top) };
+      this.slow = { at: Date.now(), libraries: mapLibraries(libraries), history: mapHistory(history), recent, top: mapHomeStats(top) };
     } catch (err) {
       if (!this.slow) throw err;
       this.slow.at = Date.now(); // back off, serve stale
@@ -156,6 +201,6 @@ export class TautulliSource {
 
   async collect(): Promise<PlexData> {
     const [activity, slow] = await Promise.all([this.api<Obj>('get_activity'), this.slowData()]);
-    return { ...mapActivity(activity), libraries: slow.libraries, history: slow.history, top: slow.top };
+    return { ...mapActivity(activity), libraries: slow.libraries, history: slow.history, recent: slow.recent, top: slow.top };
   }
 }

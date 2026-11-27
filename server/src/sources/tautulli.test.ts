@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { mapActivity, mapDecision, mapHistory, mapHomeStats, mapLibraries } from './tautulli';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { mapActivity, mapDecision, mapHistory, mapHomeStats, mapLibraries, mapRecentlyAdded, TautulliSource } from './tautulli';
 
 describe('mapDecision', () => {
   it('maps Tautulli "copy" to direct stream', () => {
@@ -96,5 +96,48 @@ describe('mapHomeStats', () => {
     expect(out.map((s) => s.id)).toEqual(['top_users', 'top_movies', 'top_tv']);
     expect(out[1]!.rows).toHaveLength(5);
     expect(out[0]!.rows[0]).toEqual({ label: 'bob', plays: 142 });
+  });
+});
+
+describe('mapRecentlyAdded', () => {
+  it('names each kind of item, newest first', () => {
+    const out = mapRecentlyAdded({
+      recently_added: [
+        { rating_key: '1', media_type: 'movie', title: 'Arrival', year: '2016', library_name: 'Movies', added_at: '100' },
+        { rating_key: '2', media_type: 'episode', title: 'Reckoning', grandparent_title: 'Andor', parent_media_index: '1', media_index: '3', added_at: '500' },
+        { rating_key: '3', media_type: 'season', title: 'Season 2', parent_title: 'Severance', added_at: '400' },
+        { rating_key: '4', media_type: 'show', title: 'The Bear', added_at: '300' },
+        { rating_key: '5', media_type: 'album', title: 'A La Sala', parent_title: 'Khruangbin', added_at: '200' },
+      ],
+    });
+    expect(out.map((i) => i.title)).toEqual([
+      'Andor S01E03 - Reckoning',
+      'Severance - Season 2',
+      'The Bear',
+      'Khruangbin - A La Sala',
+      'Arrival (2016)',
+    ]);
+    expect(out.at(-1)).toEqual({ id: '1', title: 'Arrival (2016)', mediaType: 'movie', library: 'Movies', addedAt: 100 });
+  });
+
+  it('copes with missing fields and an unexpected response', () => {
+    expect(mapRecentlyAdded({ recently_added: [{ full_title: 'Something' }] })[0]).toMatchObject({ id: '0', title: 'Something', addedAt: 0 });
+    expect(mapRecentlyAdded({})).toEqual([]);
+  });
+});
+
+describe('TautulliSource', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('still reports Plex when the recently added call fails', async () => {
+    vi.stubGlobal('fetch', async (url: string) => {
+      const cmd = new URL(url).searchParams.get('cmd');
+      const result = cmd === 'get_recently_added' ? 'error' : 'success';
+      const data = cmd === 'get_activity' ? { stream_count: '0', sessions: [] } : cmd === 'get_libraries' ? [{ section_name: 'Movies' }] : {};
+      return new Response(JSON.stringify({ response: { result, data } }));
+    });
+    const out = await new TautulliSource({ url: 'http://tautulli.local', apiKey: 'k', publicUrl: null }).collect();
+    expect(out.recent).toEqual([]);
+    expect(out.libraries).toHaveLength(1);
   });
 });

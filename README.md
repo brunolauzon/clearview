@@ -21,12 +21,13 @@
 - **Network**: UniFi WAN throughput, clients, devices and gateway load
 - **Torrents**: Deluge speeds and active downloads, shown while no alerts are firing
 - **Alerts**: firing alerts from Grafana
-- **Plex**: live streams, transcodes, bandwidth, libraries, history and top stats (through Tautulli)
+- **Plex**: live streams, transcodes, bandwidth, recently added media, libraries, history and top stats (through Tautulli)
 - **Links**: other devices on your network, with an up/down dot
 - **Edit settings in the UI**: add links, make categories, rename or hide containers. No config file to touch
 - **Themes**: Dracula, Nord, Gruvbox, Tokyo Night, Catppuccin, One Dark, Monokai, Solarized and more, plus your own background and accent colours, previewed live
 - **Weather and stocks**: the date, local weather and a small stock ticker in the header
 - **Keyboard first**: `j/k`, `/` filter, `:` commands with tab completion, `?` help. Mouse and phones work too.
+- **Your own shortcuts**: press a letter to open a website, for example `y` for YouTube
 
 ## Quick start (Unraid)
 
@@ -69,13 +70,14 @@ Release tags (`git tag v0.1.0 && git push --tags`) also publish `:0.1.0` and `:0
 
 ## Changing settings in the UI
 
-Press `7` (or type `:config`) to open the config view. It has five sections, switched with `tab`:
+Press `7` (or type `:config`) to open the config view. It has six sections, switched with `tab`:
 
 | Section | What you can do |
 |---|---|
 | **links** | add, edit and delete devices on your network |
 | **categories** | add, edit, delete and reorder categories; pick containers from a list or use `*` wildcards |
 | **containers** | containers you have customised: shown-as name, WebUI address, category, hidden |
+| **shortcuts** | letters that open a website: add, edit and delete them |
 | **general** | the browser tab title, the theme, background and accent colours (previewed as you choose), the weather location and units, and your stock tickers |
 | **yaml** | the whole file as text, with validation, for anything the forms do not cover |
 
@@ -89,12 +91,12 @@ Editing needs the config folder mounted read-write. If it is not writable the vi
 
 ## Network (UniFi) and torrents (Deluge)
 
-The home page has three boxes: **network**, **alerts** (or **torrents**), and **plex**. Host CPU, memory and the most important disks are in the header.
+The home page has three boxes: **network**, **alerts** (or **torrents**), and **plex**. Host CPU, memory and the most important disks are in the header. The plex box shows what is playing and, in the room that is left, the media added most recently; the plex view (`3`) lists the last ten additions.
 
 While nothing is firing, the middle box shows your torrents (demo data):
 
 <p align="center">
-  <img src="docs/screenshot-torrents.png" alt="The network, torrents and Plex boxes: WAN speed, clients and devices; download speed and active torrents with progress bars; current Plex streams" width="800">
+  <img src="docs/screenshot-torrents.png" alt="The network, torrents and Plex boxes: WAN speed, clients and devices; download speed and active torrents with progress bars; current Plex streams and the latest addition" width="800">
 </p>
 
 ### UniFi
@@ -209,7 +211,7 @@ The numbers refresh every 5 seconds while a browser tab is open, using one light
 | `DOCKER_HOST` | `/var/run/docker.sock` | Socket path or `tcp://host:2375` (socket proxy) |
 | `DISKS_ROOT` | `/host/mnt` | Folder whose subfolders are shown as disks |
 | `WEB_DIR` | `web/dist` | Folder the web page is served from (the Docker image sets it) |
-| `CONFIG_PATH` | `/config/clearview.yaml` | Where UI edits are saved (links, categories, containers, theme, weather, stocks) |
+| `CONFIG_PATH` | `/config/clearview.yaml` | Where UI edits are saved (links, categories, containers, shortcuts, theme, weather, stocks) |
 | `CONFIG_READONLY` | unset | `1` turns off editing in the UI |
 | `TAUTULLI_URL`, `TAUTULLI_API_KEY` | unset | Enables Plex. Key: Tautulli, Settings, Web Interface |
 | `GRAFANA_URL`, `GRAFANA_TOKEN` | unset | Enables alerts. Token: Grafana, Service accounts, Viewer role |
@@ -236,6 +238,21 @@ A source with no config shows setup instructions where it would appear. A failin
 | `1`..`7` | jump to a view (7 is the config editor) |
 | `s` | cycle container sort: category, name, state, age, cpu, mem |
 | `?` | help |
+| your own letters | open a website in a new tab (see below) |
+
+### Your own shortcuts
+
+Give a letter a web address and pressing it on the dashboard opens that site in a new tab. Add them in the config view (`:config`, shortcuts), where `youtube.com` is enough, or in `clearview.yaml`, where the address needs `http://` or `https://`:
+
+```yaml
+shortcuts:
+  y: https://youtube.com
+  f: https://facebook.com
+  l: https://linkedin.com
+  r: https://reddit.com
+```
+
+Any single letter works except `a`, `d`, `e`, `g`, `i`, `j`, `k`, `o` and `s`, which the dashboard uses. Shortcuts do nothing while you are typing in a box, or with ctrl, alt or cmd held, so browser shortcuts such as reload keep working. `?` lists yours.
 
 ## Development
 

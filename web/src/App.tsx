@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DiskInfo, LinkInfo, PlexStream } from '@clearview/shared';
-import { ContainerForm, GroupForm, LinkForm } from './components/ConfigForms';
+import { ContainerForm, GroupForm, LinkForm, ShortcutForm } from './components/ConfigForms';
 import { Crumbs } from './components/Crumbs';
 import { Header } from './components/Header';
 import { PromptBar, type PromptMode } from './components/PromptBar';
@@ -8,6 +8,7 @@ import { useNow } from './hooks/useBucket';
 import { useStream } from './hooks/useStream';
 import { saveConfig, saveYaml, type SaveFn } from './lib/api';
 import { parseCommand, VIEWS, viewFromHash, type ViewId } from './lib/commands';
+import { shortcutFor } from './lib/configEdit';
 import type { Editor } from './lib/editor';
 import { resolveUrl } from './lib/format';
 import { applyLook, cacheLook } from './lib/theme';
@@ -233,8 +234,12 @@ export default function App() {
             break;
           default: {
             const target = VIEWS.find((v) => v.key === e.key);
+            // the user's own letters; none of them can be one the cases above use
+            const url = target ? null : shortcutFor(config?.config, e.key);
             if (target) go(target.id);
-            else handled = false;
+            else if (url) {
+              if (!e.repeat) window.open(url, '_blank', 'noopener,noreferrer');
+            } else handled = false;
           }
         }
       }
@@ -244,7 +249,7 @@ export default function App() {
 
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [mode, editor, count, sel, open, go, filter, view, kind, sort, say, containers, startEdit]);
+  }, [mode, editor, count, sel, open, go, filter, view, kind, sort, say, containers, startEdit, config]);
 
   // ---------- prompt ----------
   const onSubmit = (value: string) => {
@@ -327,7 +332,7 @@ export default function App() {
       );
       break;
     case 'help':
-      body = <HelpView />;
+      body = <HelpView config={config?.config} />;
       break;
   }
 
@@ -366,6 +371,9 @@ export default function App() {
       )}
       {editor && config?.config && editor.kind === 'group' && (
         <GroupForm config={config.config} index={editor.index} containers={liveContainers} save={save} onClose={closeEditor} onSaved={saved} />
+      )}
+      {editor && config?.config && editor.kind === 'shortcut' && (
+        <ShortcutForm config={config.config} letter={editor.key} save={save} onClose={closeEditor} onSaved={saved} />
       )}
       {editor && config?.config && editor.kind === 'container' && (
         <ContainerForm config={config.config} name={editor.name} containers={liveContainers} save={save} onClose={closeEditor} onSaved={saved} />

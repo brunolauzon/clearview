@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AlertInfo, DiskInfo, Snapshot, TorrentData } from '@clearview/shared';
-import { headerDisks, middlePanel } from './panels';
+import { headerDisks, middlePanel, recentRoom } from './panels';
 
 const disk = (name: string, usedPct: number): DiskInfo => ({ name, mount: `/mnt/${name}`, totalBytes: 100, usedBytes: usedPct, freeBytes: 100 - usedPct, usedPct });
 
@@ -45,5 +45,11 @@ describe('middlePanel', () => {
   it('keeps the alerts box when there is no torrent client', () => {
     expect(middlePanel(snap<AlertInfo[]>([]), noTorrents)).toBe('alerts');
     expect(middlePanel(snap<AlertInfo[]>([]), null)).toBe('alerts');
+  });
+});
+
+describe('recentRoom', () => {
+  it('gives new additions whatever the streams leave free', () => {
+    expect([0, 1, 2, 3, 4, 7].map(recentRoom)).toEqual([4, 3, 2, 1, 0, 0]);
   });
 });

@@ -70,6 +70,12 @@ export const DEMO_FILE_CONFIG: FileConfig = {
   title: 'tower',
   weather: { location: 'Springfield', units: 'metric' },
   stocks: ['ACME', 'GLOBEX', 'INITECH', 'HOOLI'],
+  shortcuts: {
+    y: 'https://youtube.com',
+    f: 'https://facebook.com',
+    l: 'https://linkedin.com',
+    r: 'https://reddit.com',
+  },
   groups: [
     { name: 'Infrastructure', containers: ['grafana', 'prometheus', 'node-exporter', 'pihole', 'mariadb', 'redis', 'watchtower', 'clearview'] },
     { name: 'Media', containers: ['plex', 'tautulli', 'overseerr'] },
@@ -243,6 +249,14 @@ export function demoPlex(): PlexData {
       { user: 'alice', title: 'Arrival', mediaType: 'movie', player: 'Apple TV', stoppedAt: mins(300), percentComplete: 98 },
       { user: 'carol', title: 'The Bear - Forks', mediaType: 'episode', player: 'Chrome', stoppedAt: mins(1440), percentComplete: 100 },
       { user: 'dave', title: 'Spirited Away', mediaType: 'movie', player: 'iPad', stoppedAt: mins(2900), percentComplete: 61 },
+    ],
+    recent: [
+      { id: '1', title: 'Civil War (2024)', mediaType: 'movie', library: 'Movies', addedAt: mins(38) },
+      { id: '2', title: 'Severance S02E01 - Hello, Ms. Cobel', mediaType: 'episode', library: 'TV Shows', addedAt: mins(190) },
+      { id: '3', title: 'Andor - Season 2', mediaType: 'season', library: 'TV Shows', addedAt: mins(1100) },
+      { id: '4', title: 'Perfect Days (2023)', mediaType: 'movie', library: 'Movies', addedAt: mins(2600) },
+      { id: '5', title: 'Khruangbin - A La Sala', mediaType: 'album', library: 'Music', addedAt: mins(4400) },
+      { id: '6', title: 'Frieren - Season 1', mediaType: 'season', library: 'Anime', addedAt: mins(7300) },
     ],
     top: [
       { id: 'top_users', title: 'top users', rows: [{ label: 'bob', plays: 142 }, { label: 'alice', plays: 97 }, { label: 'carol', plays: 61 }] },

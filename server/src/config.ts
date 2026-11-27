@@ -3,6 +3,7 @@ import path from 'node:path';
 import type { ConfigIssue, FileConfig, WeatherConfig } from '@clearview/shared';
 import { Document, parse as parseYaml } from 'yaml';
 import { z } from 'zod';
+import { isWebAddress, shortcutKeyError } from '../../shared/shortcuts';
 import { THEME_IDS } from '../../shared/themes';
 
 export const VERSION = '0.1.0';
@@ -55,6 +56,22 @@ const stockSymbol = z
 
 export const MAX_STOCKS = 6;
 
+const ADDRESS_HINT = 'must be a web address starting with http:// or https://';
+
+/** `y: https://youtube.com`: pressing the letter opens the address. */
+const shortcutsSchema = z
+  .record(z.string(), z.string({ invalid_type_error: ADDRESS_HINT }).trim().url(ADDRESS_HINT).refine(isWebAddress, ADDRESS_HINT))
+  .superRefine((map, ctx) => {
+    const seen = new Set<string>();
+    for (const key of Object.keys(map)) {
+      const letter = key.toLowerCase();
+      const problem = shortcutKeyError(key) ?? (seen.has(letter) ? `"${letter}" is listed twice` : null);
+      if (problem) ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: problem });
+      seen.add(letter);
+    }
+  })
+  .transform((map) => Object.fromEntries(Object.entries(map).map(([key, url]) => [key.toLowerCase(), url])));
+
 const fileSchema = z
   .object({
     title: z.string().optional(),
@@ -70,6 +87,7 @@ const fileSchema = z
       .max(MAX_STOCKS, `at most ${MAX_STOCKS} stock symbols`)
       .transform((list) => [...new Set(list)])
       .optional(),
+    shortcuts: shortcutsSchema.optional(),
     links: z.array(linkSchema).default([]),
     // category name -> container names (`*` wildcard). Key order is the display order.
     groups: z.record(z.string(), z.array(text)).default({}),
@@ -105,6 +123,7 @@ function fromParsed(p: z.infer<typeof fileSchema>): FileConfig {
     ...(p.accent ? { accent: p.accent } : {}),
     ...(p.weather ? { weather: p.weather } : {}),
     ...(p.stocks && p.stocks.length > 0 ? { stocks: p.stocks } : {}),
+    ...(p.shortcuts && Object.keys(p.shortcuts).length > 0 ? { shortcuts: p.shortcuts } : {}),
     links: p.links,
     groups: Object.entries(p.groups).map(([name, containers]) => ({ name, containers })),
     hide: p.containers.hide,
@@ -171,6 +190,7 @@ export function validateFileConfig(input: unknown): ParseResult {
     accent: c.accent === '' ? undefined : c.accent,
     weather: c.weather,
     stocks: c.stocks,
+    shortcuts: c.shortcuts,
     links: c.links,
     groups: Object.fromEntries(groups),
     containers: { hide: c.hide, overrides: c.overrides },
@@ -195,6 +215,7 @@ export function toYamlText(file: FileConfig): string {
   if (file.accent) body.accent = file.accent;
   if (file.weather) body.weather = { location: file.weather.location, units: file.weather.units };
   if (file.stocks && file.stocks.length > 0) body.stocks = file.stocks;
+  if (file.shortcuts && Object.keys(file.shortcuts).length > 0) body.shortcuts = file.shortcuts;
   if (file.groups.length > 0) {
     body.groups = Object.fromEntries(file.groups.map((g) => [g.name, g.containers]));
   }

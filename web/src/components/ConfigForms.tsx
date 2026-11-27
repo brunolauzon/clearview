@@ -1,7 +1,18 @@
 import { useState, type FormEvent } from 'react';
 import type { ConfigLink, ContainerInfo, FileConfig, LinkCheck } from '@clearview/shared';
 import type { SaveFn } from '../lib/api';
-import { containerEdit, parsePatterns, patternsText, setContainer, upsertGroup, upsertLink } from '../lib/configEdit';
+import { RESERVED_KEYS } from '../../../shared/shortcuts';
+import {
+  containerEdit,
+  parsePatterns,
+  patternsText,
+  setContainer,
+  setShortcut,
+  shortcutProblem,
+  upsertGroup,
+  upsertLink,
+  webAddress,
+} from '../lib/configEdit';
 import { Field, FormActions, useSaver } from './Form';
 import { Modal } from './Modal';
 
@@ -66,6 +77,42 @@ export function LinkForm({ config, index, save, onClose, onSaved }: FormBase & {
         </Field>
         <Field label="note (optional)">
           <input className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Dream Machine" />
+        </Field>
+        <FormActions saver={saver} onCancel={onClose} />
+      </form>
+    </Modal>
+  );
+}
+
+// ---------- letter shortcut ----------
+
+export function ShortcutForm({ config, letter, save, onClose, onSaved }: FormBase & { letter: string | null }) {
+  const [key, setKey] = useState(letter ?? '');
+  const [url, setUrl] = useState((letter && config.shortcuts?.[letter]) || '');
+  const saver = useSaver(save, () => {
+    onSaved();
+    onClose();
+  });
+  const problem = key ? shortcutProblem(config, key, letter) : null;
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!problem) void saver.run(setShortcut(config, letter, key, webAddress(url)));
+  };
+
+  return (
+    <Modal title={letter ? 'edit shortcut' : 'add shortcut'} onClose={onClose}>
+      <form onSubmit={submit}>
+        <Field label="key" hint={`one letter. The dashboard already uses ${Object.keys(RESERVED_KEYS).join(' ')}`}>
+          <input className="input" value={key} onChange={(e) => setKey(e.target.value.trim())} maxLength={1} required placeholder="y" autoCapitalize="none" />
+        </Field>
+        {problem && (
+          <div className="form-errors" role="alert">
+            ⚠ {problem}
+          </div>
+        )}
+        <Field label="address" hint="opens in a new tab. youtube.com is enough: https:// is added">
+          <input className="input" value={url} onChange={(e) => setUrl(e.target.value)} required placeholder="youtube.com" autoCapitalize="none" spellCheck={false} />
         </Field>
         <FormActions saver={saver} onCancel={onClose} />
       </form>

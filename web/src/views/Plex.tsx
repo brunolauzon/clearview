@@ -88,6 +88,18 @@ export function PlexView({ snap, streams, filter, sel, onSelect, now }: PlexView
               empty={<Note>nothing playing</Note>}
             />
           </Box>
+          <Box title="recently added" count={data.recent.length}>
+            <Table
+              cols={[
+                { id: 'when', title: 'ago', width: '6ch', render: (r) => <span className="c-dim">{fmtAgo(r.addedAt, now)}</span> },
+                { id: 'title', title: 'title', width: 'minmax(16ch, 3fr)', render: (r) => r.title },
+                { id: 'library', title: 'library', width: 'minmax(10ch, 1fr)', min: 'md', render: (r) => <span className="c-dim">{r.library}</span> },
+              ]}
+              rows={data.recent}
+              rowKey={(r) => r.id}
+              empty={<Note>nothing new</Note>}
+            />
+          </Box>
           <div className="cols3">
             <Box title="libraries" count={data.libraries.length}>
               <Table

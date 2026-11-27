@@ -1,4 +1,5 @@
 import type { ConfigGroup, ConfigLink, ConfigOverride, FileConfig } from '@clearview/shared';
+import { shortcutKeyError } from '../../../shared/shortcuts';
 
 // Pure edits on the config document. Every function returns a new FileConfig and never mutates its input.
 
@@ -34,6 +35,53 @@ export function upsertLink(c: FileConfig, index: number | null, link: ConfigLink
 
 export function removeLink(c: FileConfig, index: number): FileConfig {
   return { ...c, links: c.links.filter((_, i) => i !== index) };
+}
+
+// ---------- letter shortcuts ----------
+
+export interface ShortcutEntry {
+  key: string;
+  url: string;
+}
+
+/** The shortcuts in letter order. */
+export function shortcutEntries(c: FileConfig): ShortcutEntry[] {
+  return Object.entries(c.shortcuts ?? {})
+    .map(([key, url]) => ({ key, url }))
+    .sort((a, b) => a.key.localeCompare(b.key));
+}
+
+/** The address a key press opens, if any. Caps lock or shift make no difference. */
+export function shortcutFor(c: FileConfig | undefined, key: string): string | null {
+  const letter = key.length === 1 ? key.toLowerCase() : '';
+  return (c?.shortcuts && Object.hasOwn(c.shortcuts, letter) && c.shortcuts[letter]) || null;
+}
+
+/** Why `key` cannot be saved; `editing` is the letter of the shortcut being changed, null for a new one. */
+export function shortcutProblem(c: FileConfig, key: string, editing: string | null): string | null {
+  const problem = shortcutKeyError(key);
+  if (problem) return problem;
+  const letter = key.toLowerCase();
+  return letter !== editing && shortcutFor(c, letter) ? `"${letter}" already opens ${shortcutFor(c, letter)}` : null;
+}
+
+/** "youtube.com" is what people type: add the https:// it needs. */
+export function webAddress(text: string): string {
+  const t = text.trim();
+  return !t || /^[a-z][a-z0-9+.-]*:\/\//i.test(t) ? t : `https://${t}`;
+}
+
+export function setShortcut(c: FileConfig, previous: string | null, key: string, url: string): FileConfig {
+  const shortcuts = { ...c.shortcuts };
+  if (previous !== null) delete shortcuts[previous];
+  shortcuts[key.toLowerCase()] = url;
+  return { ...c, shortcuts };
+}
+
+export function removeShortcut(c: FileConfig, key: string): FileConfig {
+  const shortcuts = { ...c.shortcuts };
+  delete shortcuts[key];
+  return { ...c, shortcuts };
 }
 
 // ---------- categories ----------

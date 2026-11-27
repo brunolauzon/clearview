@@ -1,4 +1,7 @@
+import type { FileConfig } from '@clearview/shared';
 import { Box } from '../components/Box';
+import { shortcutEntries } from '../lib/configEdit';
+import { shortUrl } from '../lib/format';
 
 const KEYS: [string, string][] = [
   ['j / k, ↓ / ↑', 'move selection'],
@@ -21,11 +24,11 @@ const COMMANDS: [string, string][] = [
   [':alerts  :a', 'Grafana alerts'],
   [':disks  :d', 'array and cache usage'],
   [':links  :l', 'other devices on your network'],
-  [':config  :cfg', 'edit links, categories, containers and the yaml'],
+  [':config  :cfg', 'edit links, categories, containers, shortcuts and the yaml'],
 ];
 
 const CONFIG_KEYS: [string, string][] = [
-  ['tab / shift-tab', 'switch section: links, categories, containers, general, yaml'],
+  ['tab / shift-tab', 'switch section: links, categories, containers, shortcuts, general, yaml'],
   ['a', 'add'],
   ['e, enter', 'edit the selected row'],
   ['d (twice)', 'delete the row, or reset a container'],
@@ -54,7 +57,8 @@ function Rows({ rows }: { rows: [string, string][] }) {
   );
 }
 
-export function HelpView() {
+export function HelpView({ config }: { config: FileConfig | undefined }) {
+  const mine = config ? shortcutEntries(config) : [];
   return (
     <div className="stack">
       <div className="cols2">
@@ -65,6 +69,13 @@ export function HelpView() {
           <Rows rows={COMMANDS} />
         </Box>
       </div>
+      <Box title="my shortcuts" count={mine.length}>
+        <Rows rows={mine.map((s) => [s.key, shortUrl(s.url)])} />
+        <p className="c-dim help-note">
+          {mine.length > 0 ? 'Each letter opens its site in a new tab.' : 'None yet: a letter can open a website, for example y for youtube.com.'}{' '}
+          Add or change them in <code>:config</code>, shortcuts.
+        </p>
+      </Box>
       <Box title="config view">
         <Rows rows={CONFIG_KEYS} />
       </Box>
