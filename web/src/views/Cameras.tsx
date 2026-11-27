@@ -1,9 +1,11 @@
 import type { ProtectCamera, ProtectData, ProtectEvent, Snapshot } from '@clearview/shared';
-import { Box, Note } from '../components/Box';
+import { Box, Empty, Note } from '../components/Box';
 import { Table, type Column } from '../components/Table';
 import { fmtAge, fmtAgo } from '../lib/format';
+import { GLYPH } from '../lib/glyphs';
 import { headlineEvent } from '../lib/panels';
 import { Gate } from './Gate';
+import type { ListProps } from './types';
 
 const STATE_TONE: Record<ProtectCamera['state'], string> = {
   connected: 'ok',
@@ -15,14 +17,23 @@ const STATE_TONE: Record<ProtectCamera['state'], string> = {
 function cameraCols(events: ProtectEvent[], now: number): Column<ProtectCamera>[] {
   return [
     { id: 'name', title: 'name', width: 'minmax(12ch, 1.5fr)', render: (c) => c.name },
-    { id: 'state', title: 'state', width: '14ch', render: (c) => <span className={`c-${STATE_TONE[c.state]}`}>● {c.state}</span> },
+    {
+      id: 'state',
+      title: 'state',
+      width: '14ch',
+      render: (c) => (
+        <span className={`c-${STATE_TONE[c.state]}`}>
+          {GLYPH.dot} {c.state}
+        </span>
+      ),
+    },
     {
       id: 'last',
       title: 'last event',
       width: 'minmax(16ch, 2fr)',
       render: (c) => {
         const last = headlineEvent(events.filter((e) => e.cameraId === c.id));
-        if (!last) return <span className="c-faint">-</span>;
+        if (!last) return <span className="c-dim">-</span>;
         return (
           <>
             {last.what} <span className="c-dim">{fmtAgo(last.start / 1000, now)}</span>
@@ -53,16 +64,13 @@ function eventCols(now: number): Column<ProtectEvent>[] {
 
 const clock = (ms: number) => new Date(ms).toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit' });
 
-interface CamerasViewProps {
+interface CamerasViewProps extends ListProps {
   snap: Snapshot<ProtectData> | null;
   cameras: ProtectCamera[];
-  filter: string;
-  sel: number;
-  onSelect: (i: number) => void;
   now: number;
 }
 
-export function CamerasView({ snap, cameras, filter, sel, onSelect, now }: CamerasViewProps) {
+export function CamerasView({ snap, cameras, filter, sel, onSelect, onClearFilter, now }: CamerasViewProps) {
   return (
     <Gate
       snap={snap}
@@ -81,15 +89,32 @@ export function CamerasView({ snap, cameras, filter, sel, onSelect, now }: Camer
         ) : (
           <div className="stack">
             <Box title="cameras" hint={filter ? `/${filter}` : 'all'} count={cameras.length}>
-              <Table cols={cameraCols(data.events, now)} rows={cameras} rowKey={(c) => c.id} sel={sel} onSelect={onSelect} empty={<Note>no cameras</Note>} />
+              <Table
+                label="cameras"
+                cols={cameraCols(data.events, now)}
+                rows={cameras}
+                rowKey={(c) => c.id}
+                sel={sel}
+                onSelect={onSelect}
+                empty={
+                  filter ? (
+                    <Empty action="clear filter" onAction={onClearFilter}>
+                      no cameras match “{filter}”
+                    </Empty>
+                  ) : (
+                    <Note>no cameras</Note>
+                  )
+                }
+              />
             </Box>
             <Box title="events" hint={data.since === null ? undefined : `since ${clock(data.since)}`} count={data.events.length}>
               {!data.live && (
                 <Note tone="warn">
-                  ⚠ the live event feed is not connected{data.feedError ? ` (${data.feedError})` : ''}. It retries on its own.
+                  the live event feed is not connected{data.feedError ? ` (${data.feedError})` : ''}. It retries on its own.
                 </Note>
               )}
               <Table
+                label="camera events"
                 cols={eventCols(now)}
                 rows={data.events.slice(0, 30)}
                 rowKey={(e) => e.id}

@@ -98,11 +98,6 @@ export function levelOf(pct: number): Level {
   return pct >= 90 ? 'err' : pct >= 70 ? 'warn' : 'ok';
 }
 
-export function barParts(pct: number, width: number): { full: string; empty: string } {
-  const filled = Math.round((Math.min(100, Math.max(0, pct)) / 100) * width);
-  return { full: '█'.repeat(filled), empty: '░'.repeat(width - filled) };
-}
-
 /**
  * Fill Unraid's `[IP]` token. Server-provided HOST_IP wins; otherwise use the address
  * the browser used to reach this dashboard, which is normally the same machine.

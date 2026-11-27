@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  barParts,
   fmtAge,
   fmtAgo,
   fmtBitrate,
@@ -100,16 +99,11 @@ describe('fmtKbps', () => {
   });
 });
 
-describe('levelOf and barParts', () => {
+describe('levelOf', () => {
   it('flags usage thresholds', () => {
     expect(levelOf(10)).toBe('ok');
     expect(levelOf(70)).toBe('warn');
     expect(levelOf(95)).toBe('err');
-  });
-  it('fills proportionally and clamps', () => {
-    expect(barParts(50, 10)).toEqual({ full: '█████', empty: '░░░░░' });
-    expect(barParts(150, 4)).toEqual({ full: '████', empty: '' });
-    expect(barParts(-5, 4)).toEqual({ full: '', empty: '░░░░' });
   });
 });
 

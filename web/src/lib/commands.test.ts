@@ -1,30 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { parseCommand, suggest, viewFromHash } from './commands';
+import { matchViews, viewFromHash } from './commands';
 
-describe('parseCommand', () => {
-  it('matches names, aliases and unique prefixes', () => {
-    expect(parseCommand('plex')).toBe('plex');
-    expect(parseCommand(':ctr')).toBe('containers');
-    expect(parseCommand('  DF ')).toBe('disks');
-    expect(parseCommand('cont')).toBe('containers');
-    expect(parseCommand('q')).toBe('home');
-    expect(parseCommand('c')).toBe('containers');
-    expect(parseCommand('cam')).toBe('cameras');
-    expect(parseCommand('protect')).toBe('cameras');
+describe('matchViews', () => {
+  const ids = (input: string) => matchViews(input).map((v) => v.id);
+  it('opens the expected view for names, aliases and the start of a name', () => {
+    const first = (input: string) => matchViews(input)[0]?.id;
+    expect([':ctr', '  DF ', 'cont', 'q', 'c', 'cam', 'protect'].map(first)).toEqual(['containers', 'disks', 'containers', 'home', 'containers', 'cameras', 'cameras']);
   });
-  it('rejects empty and unknown input', () => {
-    expect(parseCommand('')).toBeNull();
-    expect(parseCommand('nope')).toBeNull();
+  it('puts an exact name or alias first, then names that start with the text', () => {
+    expect(ids('c')).toEqual(['containers', 'config', 'cameras']);
+    expect(ids('co')).toEqual(['containers', 'config']);
+    expect(ids(':PL')).toEqual(['plex']);
   });
-});
-
-describe('suggest', () => {
-  it('returns the rest of the first matching view name', () => {
-    expect(suggest('co')).toBe('ntainers');
-    expect(suggest('pl')).toBe('ex');
-    expect(suggest('plex')).toBe('');
-    expect(suggest('')).toBe('');
-    expect(suggest('zzz')).toBe('');
+  it('matches the start of an alias, and offers everything for nothing', () => {
+    expect(ids('graf')).toEqual(['alerts']);
+    expect(ids('')).toHaveLength(9);
+    expect(ids('zzz')).toEqual([]);
   });
 });
 

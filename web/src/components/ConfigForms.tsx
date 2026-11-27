@@ -4,6 +4,7 @@ import type { SaveFn } from '../lib/api';
 import { RESERVED_KEYS } from '../../../shared/shortcuts';
 import {
   containerEdit,
+  lanAddress,
   parsePatterns,
   patternsText,
   setContainer,
@@ -20,7 +21,8 @@ interface FormBase {
   config: FileConfig;
   save: SaveFn;
   onClose: () => void;
-  onSaved: () => void;
+  /** called with a short description of what was saved */
+  onSaved: (message: string) => void;
 }
 
 // ---------- link ----------
@@ -33,16 +35,22 @@ export function LinkForm({ config, index, save, onClose, onSaved }: FormBase & {
   const [check, setCheck] = useState<LinkCheck>(existing?.check ?? 'http');
   const [note, setNote] = useState(existing?.description ?? '');
   const saver = useSaver(save, () => {
-    onSaved();
+    onSaved(existing ? `saved ${name.trim()}` : `added ${name.trim()}`);
     onClose();
   });
   const groups = [...new Set(config.links.map((l) => l.group))];
+  const dirty =
+    name !== (existing?.name ?? '') ||
+    url !== (existing?.url ?? '') ||
+    group !== (existing?.group ?? '') ||
+    check !== (existing?.check ?? 'http') ||
+    note !== (existing?.description ?? '');
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
     const link: ConfigLink = {
       name: name.trim(),
-      url: url.trim(),
+      url: lanAddress(url),
       group: group.trim() || 'links',
       check,
       ...(note.trim() ? { description: note.trim() } : {}),
@@ -52,13 +60,13 @@ export function LinkForm({ config, index, save, onClose, onSaved }: FormBase & {
   };
 
   return (
-    <Modal title={existing ? 'edit link' : 'add link'} onClose={onClose}>
+    <Modal title={existing ? 'edit link' : 'add link'} onClose={onClose} dirty={dirty}>
       <form onSubmit={submit}>
         <Field label="name">
           <input className="input" value={name} onChange={(e) => setName(e.target.value)} required placeholder="Router" />
         </Field>
-        <Field label="address" hint="where the link goes, including http:// or https://">
-          <input className="input" type="url" value={url} onChange={(e) => setUrl(e.target.value)} required placeholder="http://192.168.1.1" />
+        <Field label="address" hint="192.168.1.1 is enough: http:// is added. Type https:// if the device uses it.">
+          <input className="input" inputMode="url" value={url} onChange={(e) => setUrl(e.target.value)} required placeholder="192.168.1.1" autoCapitalize="none" spellCheck={false} />
         </Field>
         <Field label="group" hint="links with the same group are listed together">
           <input className="input" list="cv-link-groups" value={group} onChange={(e) => setGroup(e.target.value)} placeholder="network" />
@@ -78,7 +86,7 @@ export function LinkForm({ config, index, save, onClose, onSaved }: FormBase & {
         <Field label="note (optional)">
           <input className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Dream Machine" />
         </Field>
-        <FormActions saver={saver} onCancel={onClose} />
+        <FormActions saver={saver} onCancel={onClose} saveLabel={existing ? 'save changes' : 'add link'} />
       </form>
     </Modal>
   );
@@ -90,10 +98,11 @@ export function ShortcutForm({ config, letter, save, onClose, onSaved }: FormBas
   const [key, setKey] = useState(letter ?? '');
   const [url, setUrl] = useState((letter && config.shortcuts?.[letter]) || '');
   const saver = useSaver(save, () => {
-    onSaved();
+    onSaved(`${key.toLowerCase()} now opens ${webAddress(url)}`);
     onClose();
   });
   const problem = key ? shortcutProblem(config, key, letter) : null;
+  const dirty = key !== (letter ?? '') || url !== ((letter && config.shortcuts?.[letter]) || '');
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -101,20 +110,15 @@ export function ShortcutForm({ config, letter, save, onClose, onSaved }: FormBas
   };
 
   return (
-    <Modal title={letter ? 'edit shortcut' : 'add shortcut'} onClose={onClose}>
+    <Modal title={letter ? 'edit shortcut' : 'add shortcut'} onClose={onClose} dirty={dirty}>
       <form onSubmit={submit}>
-        <Field label="key" hint={`one letter. The dashboard already uses ${Object.keys(RESERVED_KEYS).join(' ')}`}>
+        <Field label="key" error={problem} hint={`one letter. The dashboard already uses ${Object.keys(RESERVED_KEYS).join(' ')}`}>
           <input className="input" value={key} onChange={(e) => setKey(e.target.value.trim())} maxLength={1} required placeholder="y" autoCapitalize="none" />
         </Field>
-        {problem && (
-          <div className="form-errors" role="alert">
-            ⚠ {problem}
-          </div>
-        )}
         <Field label="address" hint="opens in a new tab. youtube.com is enough: https:// is added">
           <input className="input" value={url} onChange={(e) => setUrl(e.target.value)} required placeholder="youtube.com" autoCapitalize="none" spellCheck={false} />
         </Field>
-        <FormActions saver={saver} onCancel={onClose} />
+        <FormActions saver={saver} onCancel={onClose} saveLabel={letter ? 'save changes' : 'add shortcut'} />
       </form>
     </Modal>
   );
@@ -134,9 +138,10 @@ export function GroupForm({
   const [name, setName] = useState(existing?.name ?? '');
   const [text, setText] = useState(patternsText(existing?.containers ?? []));
   const saver = useSaver(save, () => {
-    onSaved();
+    onSaved(existing ? `saved ${name.trim()}` : `added ${name.trim()}`);
     onClose();
   });
+  const dirty = name !== (existing?.name ?? '') || text !== patternsText(existing?.containers ?? []);
 
   const listed = new Set(parsePatterns(text));
   // containers with no category yet come first; ones already in another category are dimmed
@@ -150,7 +155,7 @@ export function GroupForm({
   };
 
   return (
-    <Modal title={existing ? 'edit category' : 'add category'} onClose={onClose}>
+    <Modal title={existing ? 'edit category' : 'add category'} onClose={onClose} dirty={dirty}>
       <form onSubmit={submit}>
         <Field label="name">
           <input className="input" value={name} onChange={(e) => setName(e.target.value)} required placeholder="Media" />
@@ -169,7 +174,7 @@ export function GroupForm({
           />
         </Field>
         {suggestions.length > 0 && (
-          <div className="chips" aria-label="containers you can add">
+          <div className="chips" role="group" aria-label="containers you can add">
             <span className="c-dim">add:</span>
             {suggestions.map((c) => (
               <button
@@ -184,7 +189,7 @@ export function GroupForm({
             ))}
           </div>
         )}
-        <FormActions saver={saver} onCancel={onClose} />
+        <FormActions saver={saver} onCancel={onClose} saveLabel={existing ? 'save changes' : 'add category'} />
       </form>
     </Modal>
   );
@@ -208,9 +213,11 @@ export function ContainerForm({
   const [group, setGroup] = useState(start.group);
   const [hidden, setHidden] = useState(start.hidden);
   const saver = useSaver(save, () => {
-    onSaved();
+    onSaved(hidden ? `${name.trim()} is now hidden. Show it again in config, containers.` : `saved ${name.trim()}`);
     onClose();
   });
+  const dirty =
+    name !== (initialName ?? '') || displayName !== start.displayName || url !== start.url || group !== start.group || hidden !== start.hidden;
 
   const live = containers.find((c) => c.rawName === name.trim());
 
@@ -220,7 +227,7 @@ export function ContainerForm({
   };
 
   return (
-    <Modal title={adding ? 'add container settings' : `edit ${initialName}`} onClose={onClose}>
+    <Modal title={adding ? 'add container settings' : `edit ${initialName}`} onClose={onClose} dirty={dirty}>
       <form onSubmit={submit}>
         <Field label="container" hint={adding ? 'the container name as Docker knows it' : undefined}>
           <input

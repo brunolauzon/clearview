@@ -7,6 +7,7 @@ import {
   applyLook,
   cacheLook,
   contrast,
+  ensureContrast,
   findTheme,
   isLightColor,
   isReadable,
@@ -120,8 +121,37 @@ describe('resolvePalette', () => {
     expect(contrast(dark.colors.fg, '#000000')).toBeGreaterThanOrEqual(4.5);
   });
 
+  it.each(THEME_IDS)('%s paints every text colour at WCAG AA on both surfaces', (theme) => {
+    const { colors, accentText, control, textReadable } = resolvePalette({ ...none, theme });
+    expect(textReadable).toBe(true);
+    for (const text of [colors.fg, colors.dim, colors.ok, colors.warn, colors.err, colors.info, accentText]) {
+      expect(contrast(text, colors.bg), text).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(text, colors.bgAlt), text).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(contrast(control, colors.bg)).toBeGreaterThanOrEqual(3);
+  });
+
+  it('keeps a chosen accent as picked for fills, and adjusts only the text copy', () => {
+    const r = resolvePalette({ ...none, theme: 'solarized-light', accent: '#e8b64c' });
+    expect(r.colors.accent).toBe('#e8b64c');
+    expect(contrast(r.accentText, r.colors.bg)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('reports a background that no text can be read on', () => {
+    expect(resolvePalette({ ...none, background: '#6b6b6b' }).textReadable).toBe(false);
+  });
+
   it('ignores a background that is not a colour', () => {
     expect(resolvePalette({ ...none, background: 'banana' }).colors.bg).toBe(findTheme(null).colors.bg);
+  });
+});
+
+describe('ensureContrast', () => {
+  it('leaves a colour that already passes, and moves one that does not only as far as needed', () => {
+    expect(ensureContrast('#ffffff', ['#000000'], 4.5, '#ffffff')).toBe('#ffffff');
+    const lifted = ensureContrast('#444444', ['#000000'], 4.5, '#ffffff');
+    expect(contrast(lifted, '#000000')).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(lifted, '#000000')).toBeLessThan(5);
   });
 });
 

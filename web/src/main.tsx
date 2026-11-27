@@ -6,8 +6,8 @@ import App from './App';
 import { applyLook, loadCachedLook } from './lib/theme';
 import './theme.css';
 
-const cached = loadCachedLook();
-if (cached) applyLook(cached);
+// paint in the last look seen on this browser (or the default) before the server answers
+applyLook(loadCachedLook() ?? { theme: null, background: null, accent: null });
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

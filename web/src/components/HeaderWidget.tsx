@@ -1,6 +1,7 @@
 import type { Quote, Snapshot, WeatherData } from '@clearview/shared';
 import { useNow } from '../hooks/useBucket';
 import { fmtPrice, fmtSigned, priceDigits, weatherKind } from '../lib/format';
+import { GLYPH } from '../lib/glyphs';
 import { WeatherIcon } from './WeatherIcon';
 
 interface HeaderWidgetProps {
@@ -42,7 +43,7 @@ function Ticker({ quote: q }: { quote: Quote }) {
       <span className="price">{q.price === null ? '-' : fmtPrice(q.price)}</span>
       {q.change !== null && q.changePct !== null ? (
         <span className={q.change > 0 ? 'c-ok' : q.change < 0 ? 'c-err' : 'c-dim'}>
-          {q.change > 0 ? '▲' : q.change < 0 ? '▼' : '■'} {fmtSigned(q.change, digits)} ({fmtSigned(q.changePct, 2)}%)
+          {q.change > 0 ? GLYPH.up : q.change < 0 ? GLYPH.down : '■'} {fmtSigned(q.change, digits)} ({fmtSigned(q.changePct, 2)}%)
         </span>
       ) : (
         <span className="c-faint">{q.error ?? ''}</span>
@@ -51,7 +52,7 @@ function Ticker({ quote: q }: { quote: Quote }) {
   );
 }
 
-/** Date, local weather and stock ticker, in the header between the shortcuts and the logo. */
+/** Date, local weather and stock ticker, at the right of the header. */
 export function HeaderWidget({ weather, quotes, onConfigure }: HeaderWidgetProps) {
   const now = new Date(useNow(10_000));
   const nothingSet = weather !== null && quotes !== null && !weather.configured && !quotes.configured;
@@ -86,8 +87,8 @@ export function HeaderWidget({ weather, quotes, onConfigure }: HeaderWidgetProps
         ))}
 
       {nothingSet && (
-        <button type="button" className="hint widget-setup" onClick={onConfigure} tabIndex={-1}>
-          <span className="hl">add weather and stocks in :config, general</span>
+        <button type="button" className="text-btn widget-setup" onClick={onConfigure}>
+          add weather and stocks
         </button>
       )}
     </div>

@@ -91,11 +91,36 @@ export function isReadable(accent: string, background: string): boolean {
 }
 
 /**
+ * `color` if it already reaches `ratio` against every background, otherwise the closest step toward
+ * `toward` (black or white) that does. The hue survives; only as much lightness as needed changes.
+ */
+export function ensureContrast(color: string, backgrounds: string[], ratio: number, toward: string): string {
+  const STEPS = 50;
+  for (let step = 0; step <= STEPS; step++) {
+    const next = mix(color, toward, step / STEPS);
+    if (backgrounds.every((bg) => contrast(next, bg) >= ratio)) return next;
+  }
+  return toward;
+}
+
+export interface Painted {
+  colors: Palette;
+  light: boolean;
+  /** false when no text colour of this scheme can be read on the background; the picker refuses it */
+  textReadable: boolean;
+  /** the accent where it is used as text: the chosen accent, lightened or darkened until it reads */
+  accentText: string;
+  /** outline of inputs and buttons, which must stand out from the page (WCAG 1.4.11) */
+  control: string;
+}
+
+/**
  * The colours to paint. A custom background keeps the theme's text colours if it is the same kind
  * (dark or light) and derives the surfaces from it; a light background on a dark theme (or the
- * reverse) switches to text and status colours made for that kind.
+ * reverse) switches to text and status colours made for that kind. Published schemes have shades
+ * too faint for small text, so every colour used as text is then brought up to WCAG AA.
  */
-export function resolvePalette(look: Look): { colors: Palette; light: boolean } {
+export function resolvePalette(look: Look): Painted {
   const theme = findTheme(look.theme);
   let colors: Palette = { ...theme.colors };
   let light = theme.light;
@@ -116,7 +141,21 @@ export function resolvePalette(look: Look): { colors: Palette; light: boolean } 
 
   const accent = look.accent ? normalizeHex(look.accent) : null;
   if (accent) colors.accent = accent;
-  return { colors, light };
+
+  const textReadable = contrast(colors.fg, colors.bg) >= 4.5;
+  const toward = light ? '#000000' : '#ffffff';
+  const surfaces = [colors.bg, colors.bgAlt];
+  // body text stays a clear step above secondary text
+  colors.fg = ensureContrast(colors.fg, surfaces, 7, toward);
+  for (const key of ['dim', 'ok', 'warn', 'err', 'info'] as const) colors[key] = ensureContrast(colors[key], surfaces, 4.5, toward);
+
+  return {
+    colors,
+    light,
+    textReadable,
+    accentText: ensureContrast(colors.accent, surfaces, 4.5, toward),
+    control: ensureContrast(colors.border, [colors.bg], 3, toward),
+  };
 }
 
 const CSS_NAMES: Record<keyof Palette, string> = {
@@ -136,11 +175,13 @@ const CSS_NAMES: Record<keyof Palette, string> = {
 
 export function applyLook(look: Look): void {
   if (typeof document === 'undefined') return;
-  const { colors, light } = resolvePalette(look);
+  const { colors, light, accentText, control } = resolvePalette(look);
   const style = document.documentElement.style;
   for (const key of Object.keys(CSS_NAMES) as (keyof Palette)[]) style.setProperty(CSS_NAMES[key], colors[key]);
   // text drawn on top of the accent: the selected row, the active tab
   style.setProperty('--accent-fg', readableOn(colors.accent));
+  style.setProperty('--accent-text', accentText);
+  style.setProperty('--control', control);
   style.colorScheme = light ? 'light' : 'dark';
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', colors.bg);
 }

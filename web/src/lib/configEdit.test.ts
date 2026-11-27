@@ -3,6 +3,7 @@ import type { FileConfig } from '@clearview/shared';
 import {
   containerEdit,
   containerEntries,
+  lanAddress,
   moveGroup,
   parsePatterns,
   parseSymbols,
@@ -157,5 +158,14 @@ describe('shortcuts', () => {
     expect(setShortcut(base, 'y', 'v', 'https://youtube.com').shortcuts).toEqual({ v: 'https://youtube.com', f: 'https://facebook.com' });
     expect(removeShortcut(base, 'f').shortcuts).toEqual({ y: 'https://youtube.com' });
     expect(Object.keys(base.shortcuts!)).toEqual(['y', 'f']);
+  });
+});
+
+describe('lanAddress', () => {
+  it('adds http:// to a bare device address and leaves any scheme alone', () => {
+    expect(lanAddress(' 192.168.1.1 ')).toBe('http://192.168.1.1');
+    expect(lanAddress('tower.local:8006')).toBe('http://tower.local:8006');
+    expect(lanAddress('https://192.168.1.20:8006')).toBe('https://192.168.1.20:8006');
+    expect(lanAddress('')).toBe('');
   });
 });

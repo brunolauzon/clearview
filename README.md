@@ -27,7 +27,8 @@
 - **Edit settings in the UI**: add links, make categories, rename or hide containers. No config file to touch
 - **Themes**: Dracula, Nord, Gruvbox, Tokyo Night, Catppuccin, One Dark, Monokai, Solarized and more, plus your own background and accent colours, previewed live
 - **Weather and stocks**: the date, local weather and a small stock ticker in the header
-- **Keyboard first**: `j/k`, `/` filter, `:` commands with tab completion, `?` help. Mouse and phones work too.
+- **Keyboard first**: `j/k`, `/` filter, `:` commands with suggestions and tab completion, `?` help
+- **Mouse, touch and screen readers**: a menu on every screen size, sortable columns, an edit button on each container, and text colours checked for contrast
 - **Your own shortcuts**: press a letter to open a website, for example `y` for YouTube
 
 ## Quick start (Unraid)
@@ -71,7 +72,7 @@ Release tags (`git tag v0.1.0 && git push --tags`) also publish `:0.1.0` and `:0
 
 ## Changing settings in the UI
 
-Press `7` (or type `:config`) to open the config view. It has six sections, switched with `tab`:
+Choose **config** in the menu (or press `7`, or type `:config`). It has six sections; click one, or switch with `[` and `]` (or the left and right arrows):
 
 | Section | What you can do |
 |---|---|
@@ -82,7 +83,7 @@ Press `7` (or type `:config`) to open the config view. It has six sections, swit
 | **general** | the browser tab title, the theme, background and accent colours (previewed as you choose), the weather location and units, and your stock tickers |
 | **yaml** | the whole file as text, with validation, for anything the forms do not cover |
 
-Keys: `a` add, `e` or `enter` edit, `d` twice to delete, `K` and `J` move a category up and down. On the containers page, `e` edits the selected container directly.
+Keys: `a` add, `e` or `enter` edit, `d` twice to delete, `K` and `J` move a category up and down, `ctrl-s` saves in **general** and **yaml**. The same actions are buttons. On the containers page, `e` or a row's **edit** button edits that container directly. Leaving a form with unsaved changes asks first.
 
 Changes apply immediately, with no restart, and every open browser tab updates. Each save from a form rewrites the file and keeps the previous version next to it as `clearview.yaml.bak`. Comments you wrote by hand survive only in the **yaml** section, which saves your text exactly as typed.
 
@@ -132,7 +133,7 @@ The torrents box replaces the alerts box only while nothing is firing (or Grafan
 
 ## Themes and colours
 
-Pick a look in the config view (general). The page previews it as you click, and it is saved in `clearview.yaml`, so every browser and device shows the same thing.
+Pick a look in the config view (general). The page previews it as you click, and it is saved in `clearview.yaml`, so every browser and device shows the same thing. Where a scheme's published shade is too faint to read as small text, clearview lightens or darkens it just enough to meet WCAG AA contrast.
 
 | `theme:` | Scheme |
 |---|---|
@@ -243,10 +244,13 @@ A source with no config shows setup instructions where it would appear. A failin
 | `ctrl-d` `ctrl-u` | half page |
 | `enter` `o` or click | open WebUI in a new tab |
 | `/` | filter (esc clears) |
-| `:` | command: `home` `containers` `plex` `alerts` `disks` `links` `config` `cameras` `help` (tab completes) |
+| `:` | command: `home` `containers` `plex` `alerts` `disks` `links` `config` `cameras` `help` (arrows choose, tab completes) |
 | `e` | edit the selected container (name, address, category, hide) |
 | `1`..`8` | jump to a view (7 is the config editor, 8 the cameras) |
-| `s` | cycle container sort: category, name, state, age, cpu, mem |
+| `s` | cycle container sort: category, name, state, age, cpu, mem (or click a column heading) |
+| `[` `]` | switch config section |
+| `tab` | move between buttons, the menu and lists |
+| `esc` | close, clear the filter, or go home |
 | `?` | help |
 | your own letters | open a website in a new tab (see below) |
 

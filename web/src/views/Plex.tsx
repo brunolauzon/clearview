@@ -1,13 +1,15 @@
 import type { PlexData, PlexStream, Snapshot } from '@clearview/shared';
 import { Bar } from '../components/Bar';
-import { Box, Note } from '../components/Box';
+import { Box, Empty, Note } from '../components/Box';
 import { Table, type Column } from '../components/Table';
 import { fmtAgo, fmtKbps } from '../lib/format';
+import { GLYPH } from '../lib/glyphs';
 import { Gate } from './Gate';
+import type { ListProps } from './types';
 
 const STATE_GLYPH: Record<PlexStream['state'], string> = {
-  playing: '▶ playing',
-  paused: '❚❚ paused',
+  playing: `${GLYPH.play} playing`,
+  paused: `${GLYPH.pause} paused`,
   buffering: '… buffering',
   unknown: '? unknown',
 };
@@ -21,7 +23,7 @@ const DECISION_TONE: Record<PlexStream['decision'], string> = {
 
 export const streamColumns: Column<PlexStream>[] = [
   { id: 'user', title: 'user', width: 'minmax(8ch, 1fr)', render: (s) => s.user },
-  { id: 'title', title: 'title', width: 'minmax(16ch, 3fr)', render: (s) => s.title },
+  { id: 'title', title: 'title', width: 'minmax(14ch, 3fr)', primary: true, render: (s) => s.title },
   {
     id: 'state',
     title: 'state',
@@ -33,18 +35,26 @@ export const streamColumns: Column<PlexStream>[] = [
   { id: 'quality', title: 'quality', width: 'minmax(10ch, 1.2fr)', min: 'lg', render: (s) => <span className="c-dim">{s.quality ?? '-'}</span> },
   { id: 'net', title: 'net', width: '5ch', min: 'md', render: (s) => <span className={s.location === 'wan' ? 'c-warn' : 'c-dim'}>{s.location}</span> },
   { id: 'bw', title: 'bw', width: '10ch', align: 'right', min: 'md', render: (s) => fmtKbps(s.bandwidthKbps) },
-  { id: 'progress', title: 'progress', width: '16ch', render: (s) => (
-    <>
-      <Bar pct={s.progressPct} width={10} level="info" /> <span className="c-dim">{Math.round(s.progressPct)}%</span>
-    </>
-  ) },
+  {
+    id: 'progress',
+    title: 'progress',
+    width: '16ch',
+    min: 'md',
+    render: (s) => (
+      <>
+        <Bar pct={s.progressPct} width={10} level="info" label={`${s.title} progress`} /> <span className="c-dim">{Math.round(s.progressPct)}%</span>
+      </>
+    ),
+  },
 ];
 
 export function PlexSummary({ data }: { data: PlexData }) {
-  if (data.streamCount === 0) return <div className="summary c-dim">▷ no active streams</div>;
+  if (data.streamCount === 0) return null;
   return (
     <div className="summary">
-      <span className="c-accent">▶ {data.streamCount} stream{data.streamCount === 1 ? '' : 's'}</span>
+      <span className="c-accent">
+        {GLYPH.play} {data.streamCount} stream{data.streamCount === 1 ? '' : 's'}
+      </span>
       <span className="c-dim"> · </span>
       <span className={data.transcodeCount > 0 ? 'c-warn' : 'c-dim'}>{data.transcodeCount} transcoding</span>
       <span className="c-dim"> · </span>
@@ -54,24 +64,20 @@ export function PlexSummary({ data }: { data: PlexData }) {
   );
 }
 
-interface PlexViewProps {
+interface PlexViewProps extends ListProps {
   snap: Snapshot<PlexData> | null;
   streams: PlexStream[];
-  filter: string;
-  sel: number;
-  onSelect: (i: number) => void;
   now: number;
-  tautulliUrl: string | null;
 }
 
-export function PlexView({ snap, streams, filter, sel, onSelect, now }: PlexViewProps) {
+export function PlexView({ snap, streams, filter, sel, onSelect, onClearFilter, now }: PlexViewProps) {
   return (
     <Gate
       snap={snap}
       title="plex"
       setup={
         <>
-          tautulli not configured. Set <code>TAUTULLI_URL</code> and <code>TAUTULLI_API_KEY</code> (Tautulli → Settings → Web Interface → API key).
+          tautulli not configured. set <code>TAUTULLI_URL</code> and <code>TAUTULLI_API_KEY</code> (Tautulli → Settings → Web Interface → API key).
         </>
       }
     >
@@ -80,16 +86,26 @@ export function PlexView({ snap, streams, filter, sel, onSelect, now }: PlexView
           <Box title="streams" hint={filter ? `/${filter}` : 'live'} count={streams.length}>
             <PlexSummary data={data} />
             <Table
+              label="streams"
               cols={streamColumns}
               rows={streams}
               rowKey={(s) => s.id}
               sel={sel}
               onSelect={onSelect}
-              empty={<Note>nothing playing</Note>}
+              empty={
+                filter ? (
+                  <Empty action="clear filter" onAction={onClearFilter}>
+                    no streams match “{filter}”
+                  </Empty>
+                ) : (
+                  <Note>no one is watching</Note>
+                )
+              }
             />
           </Box>
           <Box title="recently added" count={data.recent.length}>
             <Table
+              label="recently added"
               cols={[
                 { id: 'when', title: 'ago', width: '6ch', render: (r) => <span className="c-dim">{fmtAgo(r.addedAt, now)}</span> },
                 { id: 'title', title: 'title', width: 'minmax(16ch, 3fr)', render: (r) => r.title },
@@ -103,10 +119,11 @@ export function PlexView({ snap, streams, filter, sel, onSelect, now }: PlexView
           <div className="cols3">
             <Box title="libraries" count={data.libraries.length}>
               <Table
+                label="libraries"
                 cols={[
-                  { id: 'name', title: 'name', width: '1fr', render: (l) => l.name },
+                  { id: 'name', title: 'name', width: 'minmax(0, 1fr)', render: (l) => l.name },
                   { id: 'count', title: 'items', width: '8ch', align: 'right', render: (l) => l.count.toLocaleString() },
-                  { id: 'child', title: 'children', width: '9ch', align: 'right', render: (l) => (l.childCount ? l.childCount.toLocaleString() : <span className="c-faint">-</span>) },
+                  { id: 'child', title: 'children', width: '9ch', align: 'right', render: (l) => (l.childCount ? l.childCount.toLocaleString() : <span className="c-dim">-</span>) },
                 ]}
                 rows={data.libraries}
                 rowKey={(l) => l.name}
@@ -114,10 +131,11 @@ export function PlexView({ snap, streams, filter, sel, onSelect, now }: PlexView
             </Box>
             <Box title="recently watched" count={data.history.length}>
               <Table
+                label="recently watched"
                 cols={[
                   { id: 'when', title: 'ago', width: '6ch', render: (h) => <span className="c-dim">{fmtAgo(h.stoppedAt, now)}</span> },
                   { id: 'user', title: 'user', width: '9ch', render: (h) => h.user },
-                  { id: 'title', title: 'title', width: '1fr', render: (h) => h.title },
+                  { id: 'title', title: 'title', width: 'minmax(0, 1fr)', render: (h) => h.title },
                 ]}
                 rows={data.history}
                 rowKey={(h) => `${h.stoppedAt}${h.user}${h.title}`}
@@ -130,7 +148,7 @@ export function PlexView({ snap, streams, filter, sel, onSelect, now }: PlexView
                 <div key={stat.id} className="top-block">
                   <div className="c-accent top-title">{stat.title}</div>
                   {stat.rows.map((r) => (
-                    <div key={r.label} className="top-row">
+                    <div key={r.label} className="top-row" title={`${r.label}: ${r.plays} plays`}>
                       <span className="top-label">{r.label}</span>
                       <span className="c-dim">{r.plays}</span>
                     </div>

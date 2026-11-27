@@ -71,6 +71,12 @@ export function webAddress(text: string): string {
   return !t || /^[a-z][a-z0-9+.-]*:\/\//i.test(t) ? t : `https://${t}`;
 }
 
+/** The same for a device on your own network, which usually speaks plain http. */
+export function lanAddress(text: string): string {
+  const t = text.trim();
+  return !t || /^[a-z][a-z0-9+.-]*:\/\//i.test(t) ? t : `http://${t}`;
+}
+
 export function setShortcut(c: FileConfig, previous: string | null, key: string, url: string): FileConfig {
   const shortcuts = { ...c.shortcuts };
   if (previous !== null) delete shortcuts[previous];
