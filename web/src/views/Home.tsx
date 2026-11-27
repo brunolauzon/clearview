@@ -1,8 +1,8 @@
-import type { AlertInfo, ContainerInfo, PlexData, Snapshot, TorrentData, UnifiData } from '@clearview/shared';
+import type { AlertInfo, ContainerInfo, PlexData, ProtectData, Snapshot, TorrentData, UnifiData } from '@clearview/shared';
 import { Bar } from '../components/Bar';
 import { Box, Note } from '../components/Box';
 import { fmtAge, fmtAgo, fmtBitrate, fmtBytes, fmtKbps } from '../lib/format';
-import { middlePanel, PLEX_STREAMS, recentRoom } from '../lib/panels';
+import { headlineEvent, middlePanel, PLEX_STREAMS, recentRoom } from '../lib/panels';
 import type { SortKey, StatsMap } from '../lib/rows';
 import { SEVERITY_LABEL, SEVERITY_TONE } from './Alerts';
 import { ContainersTable } from './Containers';
@@ -22,7 +22,47 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
-function NetworkPanel({ snap }: { snap: Snapshot<UnifiData> | null }) {
+/** Cameras online and the latest thing one of them saw; nothing at all without Protect. */
+function CameraLines({ snap, now }: { snap: Snapshot<ProtectData> | null; now: number }) {
+  if (!snap?.configured) return null;
+  const d = snap.data;
+  if (!d) return snap.error ? <div className="line c-err">⚠ {snap.error}</div> : null;
+  if (!d.available) return null;
+  const down = d.cameras.filter((c) => c.state !== 'connected');
+  const latest = headlineEvent(d.events);
+  return (
+    <>
+      <Stale snap={snap} />
+      <Row label="cameras">
+        <span className={down.length > 0 ? 'c-warn' : 'c-ok'}>
+          {d.cameras.length - down.length}/{d.cameras.length} online
+        </span>
+        {!d.live && <span className="c-warn">events offline</span>}
+      </Row>
+      {down.slice(0, 2).map((c) => (
+        <div key={c.id} className="line">
+          <span className="c-err">●</span>
+          <span className="grow-text">{c.name}</span>
+          <span className="c-dim">{c.state}</span>
+        </div>
+      ))}
+      <Row label="latest">
+        {latest ? (
+          <>
+            <span className="grow-text">
+              {latest.what} · {latest.camera}
+            </span>
+            <span className="c-dim">{fmtAgo(latest.start / 1000, now)}</span>
+          </>
+        ) : (
+          <span className="c-dim">nothing seen yet</span>
+        )}
+      </Row>
+    </>
+  );
+}
+
+function NetworkPanel({ snap, protect, now }: { snap: Snapshot<UnifiData> | null; protect: Snapshot<ProtectData> | null; now: number }) {
   const note = inlineState(snap, 'unifi not configured · set UNIFI_URL and UNIFI_API_KEY');
   const d = snap?.data;
   const gw = d?.gateway;
@@ -72,6 +112,7 @@ function NetworkPanel({ snap }: { snap: Snapshot<UnifiData> | null }) {
           )}
         </>
       )}
+      <CameraLines snap={protect} now={now} />
     </Box>
   );
 }
@@ -175,6 +216,7 @@ function PlexPanel({ snap, now }: { snap: Snapshot<PlexData> | null; now: number
 
 interface HomeProps {
   unifi: Snapshot<UnifiData> | null;
+  protect: Snapshot<ProtectData> | null;
   alerts: Snapshot<AlertInfo[]> | null;
   torrents: Snapshot<TorrentData> | null;
   plex: Snapshot<PlexData> | null;
@@ -190,12 +232,12 @@ interface HomeProps {
 }
 
 export function HomeView(props: HomeProps) {
-  const { unifi, alerts, torrents, plex, containers, containersSnap, sel, onSelect, hostIp, sort, stats, filter, now } = props;
+  const { unifi, protect, alerts, torrents, plex, containers, containersSnap, sel, onSelect, hostIp, sort, stats, filter, now } = props;
   const error = containersSnap && !containersSnap.ok ? containersSnap.error : null;
   return (
     <div className="home">
       <div className="panels">
-        <NetworkPanel snap={unifi} />
+        <NetworkPanel snap={unifi} protect={protect} now={now} />
         {middlePanel(alerts, torrents) === 'alerts' ? (
           <AlertsPanel snap={alerts} now={now} />
         ) : (

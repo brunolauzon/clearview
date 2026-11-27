@@ -19,6 +19,7 @@
 - **Categories**: group containers into sections like Infrastructure and Media
 - **Host stats**: CPU, memory and disk usage in the header, with every disk, cache and pool on its own view
 - **Network**: UniFi WAN throughput, clients, devices and gateway load
+- **Cameras**: UniFi Protect cameras online and the latest person, vehicle or doorbell event
 - **Torrents**: Deluge speeds and active downloads, shown while no alerts are firing
 - **Alerts**: firing alerts from Grafana
 - **Plex**: live streams, transcodes, bandwidth, recently added media, libraries, history and top stats (through Tautulli)
@@ -91,12 +92,12 @@ Editing needs the config folder mounted read-write. If it is not writable the vi
 
 ## Network (UniFi) and torrents (Deluge)
 
-The home page has three boxes: **network**, **alerts** (or **torrents**), and **plex**. Host CPU, memory and the most important disks are in the header. The plex box shows what is playing and, in the room that is left, the media added most recently; the plex view (`3`) lists the last ten additions.
+The home page has three boxes: **network** (with your cameras, if you run Protect), **alerts** (or **torrents**), and **plex**. Host CPU, memory and the most important disks are in the header. The plex box shows what is playing and, in the room that is left, the media added most recently; the plex view (`3`) lists the last ten additions.
 
 While nothing is firing, the middle box shows your torrents (demo data):
 
 <p align="center">
-  <img src="docs/screenshot-torrents.png" alt="The network, torrents and Plex boxes: WAN speed, clients and devices; download speed and active torrents with progress bars; current Plex streams and the latest addition" width="800">
+  <img src="docs/screenshot-torrents.png" alt="The network, torrents and Plex boxes: WAN speed, clients, devices and cameras; download speed and active torrents with progress bars; current Plex streams and the latest addition" width="800">
 </p>
 
 ### UniFi
@@ -114,6 +115,14 @@ If something looks wrong, please open an issue. Two things help:
 
 - **No gateway found, or empty WAN numbers**: include the output of `python3 scripts/unifi-check.py https://192.168.1.1` (use your console's address). It asks for the API key without showing it, and prints device models, states, features and uplink rates, with no key, addresses or device names. Like `UNIFI_INSECURE=1`, it does not verify the console's certificate.
 - **WAN speed at one eighth of what UniFi shows**: your version reports bytes rather than bits per second. This unit is not yet confirmed.
+
+### Protect cameras
+
+If the same console runs UniFi Protect, the network box also shows how many cameras are online, any that are not, and the latest event. The cameras view (`8` or `:cameras`) lists every camera with its model, what it detects and its last event, followed by recent events: person, vehicle, package, license plate, face, animal, sounds such as a smoke alarm, doorbell rings and plain motion. The latest event prefers something recognised over plain motion.
+
+It needs no settings beyond the UniFi ones above: the same address and API key are used. Set `UNIFI_PROTECT=0` to leave cameras out.
+
+It reads Protect's Integration API and follows its live event feed, and it only reads. That API has no event history, storage use or recording status, so events are those that happen while clearview is running, and they are forgotten when it restarts. Camera pictures are not shown. The camera list has been checked against Protect 7.3.74; event handling follows Ubiquiti's specification for that version. If something is missing, include the output of `python3 scripts/protect-check.py https://192.168.1.1` in an issue: it prints models, states and detection types, with no key, names, addresses or IDs.
 
 ### Deluge
 
@@ -218,6 +227,7 @@ The numbers refresh every 5 seconds while a browser tab is open, using one light
 | `GRAFANA_PUBLIC_URL`, `TAUTULLI_PUBLIC_URL` | unset | Browser-reachable address, if different from the one the server uses |
 | `UNIFI_URL`, `UNIFI_API_KEY` | unset | Enables the network box (UniFi console) |
 | `UNIFI_SITE`, `UNIFI_INSECURE` | unset | Site name; `1` accepts a self-signed certificate |
+| `UNIFI_PROTECT` | on | `0` leaves out Protect cameras and events |
 | `DELUGE_URL`, `DELUGE_PASSWORD` | unset | Enables torrent stats (Deluge web UI) |
 | `CLEARVIEW_DEMO` | unset | `1` serves fake data for trying the UI |
 | `CLEARVIEW_DEMO_ALERTS` | `1` | In demo mode, `0` shows a dashboard with nothing firing |
@@ -233,9 +243,9 @@ A source with no config shows setup instructions where it would appear. A failin
 | `ctrl-d` `ctrl-u` | half page |
 | `enter` `o` or click | open WebUI in a new tab |
 | `/` | filter (esc clears) |
-| `:` | command: `home` `containers` `plex` `alerts` `disks` `links` `config` `help` (tab completes) |
+| `:` | command: `home` `containers` `plex` `alerts` `disks` `links` `config` `cameras` `help` (tab completes) |
 | `e` | edit the selected container (name, address, category, hide) |
-| `1`..`7` | jump to a view (7 is the config editor) |
+| `1`..`8` | jump to a view (7 is the config editor, 8 the cameras) |
 | `s` | cycle container sort: category, name, state, age, cpu, mem |
 | `?` | help |
 | your own letters | open a website in a new tab (see below) |
@@ -274,6 +284,7 @@ Layout: `shared/` API types and colour themes, `server/src/sources/` one file pe
 ## Security
 
 - Clearview has no login. Keep it on your LAN, or put it behind your reverse proxy's auth. Anyone who can open it can also change its settings (links, categories, hidden containers) unless you set `CONFIG_READONLY=1`. Writes are refused unless they come from the page itself, so another website cannot change them through your browser.
+- With Protect, anyone who can open the dashboard sees your camera names and when each one detected something. Set `UNIFI_PROTECT=0` if that is more than you want to show.
 - Mounting `docker.sock` read-only does not make the Docker API read-only: anything that can reach the socket can control Docker. Clearview only lists and inspects containers and reads their usage statistics. To remove that exposure, run [`tecnativa/docker-socket-proxy`](https://github.com/Tecnativa/docker-socket-proxy) with only `CONTAINERS=1` (and `EVENTS=1`) enabled, and set `DOCKER_HOST=tcp://socket-proxy:2375` instead of mounting the socket.
 - API keys, tokens and passwords (Tautulli, Grafana, UniFi, Deluge) stay on the server. They are never sent to the browser or included in error messages.
 - Clearview only reads from those services (apart from connecting an idle Deluge web UI to its daemon), but the UniFi key and Deluge password can do more than read. Give clearview its own UniFi key so you can revoke it on its own.

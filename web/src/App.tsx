@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { DiskInfo, LinkInfo, PlexStream } from '@clearview/shared';
+import type { DiskInfo, LinkInfo, PlexStream, ProtectCamera } from '@clearview/shared';
 import { ContainerForm, GroupForm, LinkForm, ShortcutForm } from './components/ConfigForms';
 import { Crumbs } from './components/Crumbs';
 import { Header } from './components/Header';
@@ -14,6 +14,7 @@ import { resolveUrl } from './lib/format';
 import { applyLook, cacheLook } from './lib/theme';
 import { containerSearchText, filterBy, SORT_KEYS, sortContainers, type SortKey } from './lib/rows';
 import { AlertsView } from './views/Alerts';
+import { CamerasView } from './views/Cameras';
 import { ConfigView } from './views/Config';
 import { ContainersView } from './views/Containers';
 import { DisksView } from './views/Disks';
@@ -25,7 +26,7 @@ import { PlexView } from './views/Plex';
 const NO_GROUPS: string[] = [];
 
 /** Which list the selection cursor moves over in each view. */
-type ListKind = 'containers' | 'alerts' | 'streams' | 'disks' | 'links' | null;
+type ListKind = 'containers' | 'alerts' | 'streams' | 'disks' | 'links' | 'cameras' | null;
 const LIST_OF: Record<ViewId, ListKind> = {
   home: 'containers',
   containers: 'containers',
@@ -34,6 +35,7 @@ const LIST_OF: Record<ViewId, ListKind> = {
   disks: 'disks',
   links: 'links',
   config: null, // the config view keeps its own cursor
+  cameras: 'cameras',
   help: null,
 };
 
@@ -125,8 +127,13 @@ export default function App() {
     [s.links, filter],
   );
 
+  const cameras: ProtectCamera[] = useMemo(
+    () => filterBy(s.protect?.data?.cameras ?? [], filter, (c) => `${c.name} ${c.model} ${c.state}`),
+    [s.protect, filter],
+  );
+
   const kind = LIST_OF[view];
-  const count = kind === 'containers' ? containers.length : kind === 'alerts' ? alerts.length : kind === 'streams' ? streams.length : kind === 'disks' ? disks.length : kind === 'links' ? links.length : 0;
+  const count = kind === 'containers' ? containers.length : kind === 'alerts' ? alerts.length : kind === 'streams' ? streams.length : kind === 'disks' ? disks.length : kind === 'links' ? links.length : kind === 'cameras' ? cameras.length : 0;
 
   useEffect(() => {
     setSel((i) => Math.min(i, Math.max(0, count - 1)));
@@ -278,6 +285,7 @@ export default function App() {
       body = (
         <HomeView
           unifi={s.unifi}
+          protect={s.protect}
           alerts={s.alerts}
           torrents={s.torrents}
           plex={s.plex}
@@ -317,6 +325,9 @@ export default function App() {
       break;
     case 'links':
       body = <LinksView snap={s.links} links={links} {...common} />;
+      break;
+    case 'cameras':
+      body = <CamerasView snap={s.protect} cameras={cameras} now={now} {...common} />;
       break;
     case 'config':
       body = (

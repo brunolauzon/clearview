@@ -24,6 +24,8 @@ services:
       UNIFI_SITE: ${UNIFI_SITE:-}
       # 1 accepts the console's self-signed certificate (skips certificate checks for UniFi only).
       UNIFI_INSECURE: ${UNIFI_INSECURE:-}
+      # Protect cameras and events come with the UniFi settings; 0 leaves them out.
+      UNIFI_PROTECT: ${UNIFI_PROTECT:-}
       # Torrent stats, shown while no alerts are firing: the Deluge web UI and its password.
       DELUGE_URL: ${DELUGE_URL:-}
       DELUGE_PASSWORD: ${DELUGE_PASSWORD:-}

@@ -8,6 +8,9 @@ describe('parseCommand', () => {
     expect(parseCommand('  DF ')).toBe('disks');
     expect(parseCommand('cont')).toBe('containers');
     expect(parseCommand('q')).toBe('home');
+    expect(parseCommand('c')).toBe('containers');
+    expect(parseCommand('cam')).toBe('cameras');
+    expect(parseCommand('protect')).toBe('cameras');
   });
   it('rejects empty and unknown input', () => {
     expect(parseCommand('')).toBeNull();

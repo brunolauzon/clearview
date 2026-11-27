@@ -281,6 +281,8 @@ export interface AppConfig {
   grafana: { url: string; token: string | null; publicUrl: string | null } | null;
   /** UniFi console, read through the Network Integration API */
   unifi: { url: string; apiKey: string; site: string | null; insecure: boolean } | null;
+  /** read cameras and events from UniFi Protect on the same console (on unless UNIFI_PROTECT=0) */
+  protect: boolean;
   deluge: { url: string; password: string } | null;
   links: LinkConfig[];
   /** categories in display order */
@@ -372,6 +374,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       unifiUrl && unifiKey
         ? { url: stripSlash(unifiUrl), apiKey: unifiKey, site: clean(env.UNIFI_SITE), insecure: flag(env.UNIFI_INSECURE) }
         : null,
+    protect: env.UNIFI_PROTECT !== '0' && env.UNIFI_PROTECT !== 'false',
     deluge: delugeUrl && delugePassword ? { url: stripSlash(delugeUrl), password: delugePassword } : null,
     links: [],
     groups: [],

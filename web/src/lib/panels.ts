@@ -1,4 +1,4 @@
-import type { AlertInfo, DiskInfo, Snapshot, TorrentData } from '@clearview/shared';
+import type { AlertInfo, DiskInfo, ProtectEvent, Snapshot, TorrentData } from '@clearview/shared';
 
 /**
  * The disks worth a line in the header: the array total, then pools such as cache, then the fullest
@@ -38,4 +38,12 @@ export function recentRoom(streams: number): number {
   const more = streams > PLEX_STREAMS ? 1 : 0;
   const heading = 1;
   return Math.max(0, PLEX_LINES - status - Math.min(streams, PLEX_STREAMS) - more - heading);
+}
+
+/**
+ * The camera event worth showing first, from a newest-first list: the latest with something recognised
+ * in it, because plain motion is constant; motion only when there is nothing else.
+ */
+export function headlineEvent(events: ProtectEvent[]): ProtectEvent | null {
+  return events.find((e) => !e.motionOnly) ?? events[0] ?? null;
 }

@@ -7,6 +7,7 @@ import type {
   HostStats,
   LinkInfo,
   PlexData,
+  ProtectData,
   Quote,
   TorrentData,
   UnifiData,
@@ -182,6 +183,39 @@ export function demoAlerts(): AlertInfo[] {
       labels: { alertname: 'Cache pool usage above 85%', severity: 'warning' },
     },
   ];
+}
+
+export function demoProtect(): ProtectData {
+  const ago = (minutes: number) => started - minutes * 60_000;
+  const cameras: ProtectData['cameras'] = [
+    { id: 'c1', name: 'Backyard', model: 'UVC G5 Flex', state: 'connected', detects: ['animal', 'person', 'vehicle'] },
+    { id: 'c2', name: 'Driveway', model: 'UVC G6 Turret', state: 'connected', detects: ['person', 'vehicle', 'license plate'] },
+    { id: 'c3', name: 'Front door', model: 'UVC G6 Turret', state: 'connected', detects: ['person', 'animal', 'face'] },
+  ];
+  const event = (id: string, cameraId: string, what: string, minutes: number, seconds: number): ProtectData['events'][number] => ({
+    id,
+    cameraId,
+    camera: cameras.find((c) => c.id === cameraId)!.name,
+    what,
+    motionOnly: what === 'motion',
+    start: ago(minutes),
+    end: ago(minutes) + seconds * 1000,
+  });
+  return {
+    available: true,
+    cameras,
+    events: [
+      event('e1', 'c1', 'motion', 1, 8),
+      event('e2', 'c2', 'person', 4, 22),
+      event('e3', 'c2', 'vehicle, license plate', 18, 35),
+      event('e4', 'c3', 'doorbell', 52, 3),
+      event('e5', 'c1', 'animal', 87, 41),
+      event('e6', 'c3', 'person', 140, 17),
+    ],
+    live: true,
+    feedError: null,
+    since: ago(180),
+  };
 }
 
 export function demoPlex(): PlexData {

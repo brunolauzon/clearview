@@ -1,4 +1,4 @@
-export type ViewId = 'home' | 'containers' | 'plex' | 'alerts' | 'disks' | 'links' | 'config' | 'help';
+export type ViewId = 'home' | 'containers' | 'plex' | 'alerts' | 'disks' | 'links' | 'config' | 'cameras' | 'help';
 
 export interface ViewDef {
   id: ViewId;
@@ -15,6 +15,7 @@ export const VIEWS: ViewDef[] = [
   { id: 'disks', key: '5', aliases: ['d', 'disk', 'df'] },
   { id: 'links', key: '6', aliases: ['l', 'net', 'network'] },
   { id: 'config', key: '7', aliases: ['cfg', 'conf', 'settings', 'edit'] },
+  { id: 'cameras', key: '8', aliases: ['cam', 'cams', 'protect', 'nvr'] },
   { id: 'help', key: null, aliases: ['?'] },
 ];
 

@@ -183,6 +183,44 @@ export interface PlexData {
   top: PlexTopStat[];
 }
 
+// ---------- UniFi Protect ----------
+
+export interface ProtectCamera {
+  id: string;
+  name: string;
+  model: string;
+  state: 'connected' | 'connecting' | 'disconnected' | 'unknown';
+  /** what the camera is set to detect, e.g. "person", "license plate" */
+  detects: string[];
+}
+
+export interface ProtectEvent {
+  id: string;
+  cameraId: string;
+  camera: string;
+  /** "person", "doorbell", "motion", ... */
+  what: string;
+  /** plain motion, with nothing recognised in it */
+  motionOnly: boolean;
+  /** epoch milliseconds */
+  start: number;
+  /** null while it is still going on */
+  end: number | null;
+}
+
+export interface ProtectData {
+  /** false when the console has no Protect */
+  available: boolean;
+  cameras: ProtectCamera[];
+  /** newest first, heard since `since` */
+  events: ProtectEvent[];
+  /** whether the live event feed is connected */
+  live: boolean;
+  feedError: string | null;
+  /** epoch milliseconds the feed was first connected; null if it never was */
+  since: number | null;
+}
+
 // ---------- links ----------
 
 export type LinkCheck = 'http' | 'tcp' | 'none';

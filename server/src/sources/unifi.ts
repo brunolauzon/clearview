@@ -56,8 +56,20 @@ const CERT_ERRORS = new Set([
   'CERT_HAS_EXPIRED',
 ]);
 
-/** Consoles ship with self-signed certificates, so verification can be switched off, but only on request. */
-export function httpGetter(cfg: NonNullable<AppConfig['unifi']>, timeoutMs = 6000): Getter {
+export class HttpStatusError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
+}
+
+/**
+ * Consoles ship with self-signed certificates, so verification can be switched off, but only on request.
+ * `label` names the application in error messages: the same getter serves Protect.
+ */
+export function httpGetter(cfg: NonNullable<AppConfig['unifi']>, timeoutMs = 6000, label = 'unifi'): Getter {
   return (path) =>
     new Promise((resolve, reject) => {
       const url = new URL(`${cfg.url}${path}`);
@@ -67,12 +79,12 @@ export function httpGetter(cfg: NonNullable<AppConfig['unifi']>, timeoutMs = 600
         res.on('data', (c: Buffer) => chunks.push(c));
         res.on('end', () => {
           const status = res.statusCode ?? 0;
-          if (status === 401 || status === 403) return reject(new Error(`unifi: auth failed (HTTP ${status}), check the API key`));
-          if (status >= 400 || status === 0) return reject(new Error(`unifi: HTTP ${status}`));
+          if (status === 401 || status === 403) return reject(new HttpStatusError(`${label}: auth failed (HTTP ${status}), check the API key`, status));
+          if (status >= 400 || status === 0) return reject(new HttpStatusError(`${label}: HTTP ${status}`, status));
           try {
             resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')));
           } catch {
-            reject(new Error('unifi: response was not JSON, check UNIFI_URL points at the console'));
+            reject(new Error(`${label}: response was not JSON, check UNIFI_URL points at the console`));
           }
         });
       };
@@ -83,9 +95,9 @@ export function httpGetter(cfg: NonNullable<AppConfig['unifi']>, timeoutMs = 600
       req.on('timeout', () => req.destroy(new Error('timeout')));
       req.on('error', (err: NodeJS.ErrnoException) => {
         if (err.code && CERT_ERRORS.has(err.code)) {
-          return reject(new Error('unifi: the console certificate is not trusted. Set UNIFI_INSECURE=1 to accept it.'));
+          return reject(new Error(`${label}: the console certificate is not trusted. Set UNIFI_INSECURE=1 to accept it.`));
         }
-        reject(new Error(`unifi: cannot connect (${err.code ?? err.message})`));
+        reject(new Error(`${label}: cannot connect (${err.code ?? err.message})`));
       });
     });
 }

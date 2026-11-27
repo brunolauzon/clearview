@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { AlertInfo, DiskInfo, Snapshot, TorrentData } from '@clearview/shared';
-import { headerDisks, middlePanel, recentRoom } from './panels';
+import type { AlertInfo, DiskInfo, ProtectEvent, Snapshot, TorrentData } from '@clearview/shared';
+import { headerDisks, headlineEvent, middlePanel, recentRoom } from './panels';
 
 const disk = (name: string, usedPct: number): DiskInfo => ({ name, mount: `/mnt/${name}`, totalBytes: 100, usedBytes: usedPct, freeBytes: 100 - usedPct, usedPct });
 
@@ -51,5 +51,15 @@ describe('middlePanel', () => {
 describe('recentRoom', () => {
   it('gives new additions whatever the streams leave free', () => {
     expect([0, 1, 2, 3, 4, 7].map(recentRoom)).toEqual([4, 3, 2, 1, 0, 0]);
+  });
+});
+
+describe('headlineEvent', () => {
+  const event = (id: string, motionOnly: boolean): ProtectEvent => ({ id, cameraId: 'c', camera: 'C', what: motionOnly ? 'motion' : 'person', motionOnly, start: 0, end: null });
+
+  it('prefers something recognised over newer plain motion', () => {
+    expect(headlineEvent([event('m', true), event('p', false)])?.id).toBe('p');
+    expect(headlineEvent([event('m', true), event('n', true)])?.id).toBe('m');
+    expect(headlineEvent([])).toBeNull();
   });
 });

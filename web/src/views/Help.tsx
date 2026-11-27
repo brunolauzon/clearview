@@ -12,7 +12,7 @@ const KEYS: [string, string][] = [
   [':', 'command prompt (tab completes)'],
   ['e', 'edit the selected container: name, address, category, hide'],
   ['s', 'cycle container sort: category, name, state, age, cpu, mem'],
-  ['1 – 7', 'home, containers, plex, alerts, disks, links, config'],
+  ['1 – 8', 'home, containers, plex, alerts, disks, links, config, cameras'],
   ['?', 'this help'],
   ['esc', 'clear filter, then back to home'],
 ];
@@ -25,6 +25,7 @@ const COMMANDS: [string, string][] = [
   [':disks  :d', 'array and cache usage'],
   [':links  :l', 'other devices on your network'],
   [':config  :cfg', 'edit links, categories, containers, shortcuts and the yaml'],
+  [':cameras  :cam', 'UniFi Protect cameras and recent events'],
 ];
 
 const CONFIG_KEYS: [string, string][] = [

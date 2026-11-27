@@ -8,6 +8,7 @@ import type {
   LinkInfo,
   Meta,
   PlexData,
+  ProtectData,
   Quote,
   Snapshot,
   TorrentData,
@@ -29,9 +30,10 @@ export interface StreamState {
   quotes: Snapshot<Quote[]> | null;
   unifi: Snapshot<UnifiData> | null;
   torrents: Snapshot<TorrentData> | null;
+  protect: Snapshot<ProtectData> | null;
 }
 
-const TOPICS = ['meta', 'config', 'host', 'containers', 'stats', 'plex', 'alerts', 'links', 'weather', 'quotes', 'unifi', 'torrents'] as const;
+const TOPICS = ['meta', 'config', 'host', 'containers', 'stats', 'plex', 'alerts', 'links', 'weather', 'quotes', 'unifi', 'torrents', 'protect'] as const;
 
 const initial: StreamState = {
   connected: false,
@@ -47,6 +49,7 @@ const initial: StreamState = {
   quotes: null,
   unifi: null,
   torrents: null,
+  protect: null,
 };
 
 /** One EventSource for the whole app. The browser reconnects on its own; the server replays the latest value of every topic. */

@@ -9,6 +9,7 @@ import type {
   LinkInfo,
   Meta,
   PlexData,
+  ProtectData,
   Quote,
   TorrentData,
   UnifiData,
@@ -28,6 +29,7 @@ import { fetchQuotes } from './sources/quotes';
 import { WeatherSource } from './sources/weather';
 import { DelugeSource } from './sources/deluge';
 import { UnifiSource } from './sources/unifi';
+import { ProtectSource } from './sources/protect';
 import {
   DEMO_FILE_CONFIG,
   demoAlerts,
@@ -35,6 +37,7 @@ import {
   demoHost,
   demoLinks,
   demoPlex,
+  demoProtect,
   demoQuotes,
   demoStats,
   demoTorrents,
@@ -71,6 +74,7 @@ const prober = new LinkProber(cfg.links);
 const stats = new StatsCollector(docker);
 const weather = new WeatherSource();
 const unifi = cfg.unifi ? new UnifiSource(cfg.unifi) : null;
+const protect = cfg.unifi && cfg.protect ? new ProtectSource(cfg.unifi) : null;
 const deluge = cfg.deluge ? new DelugeSource(cfg.deluge) : null;
 
 /** The links topic has no source until at least one link is configured. */
@@ -117,6 +121,7 @@ const topics = {
     cfg.demo ? async () => (cfg.demoAlerts ? demoAlerts() : []) : grafana ? () => fetchAlerts(grafana) : null,
   ),
   unifi: new Topic<UnifiData>('unifi', hub, 15_000, cfg.demo ? async () => demoUnifi() : unifi ? () => unifi.collect() : null),
+  protect: new Topic<ProtectData>('protect', hub, 5_000, cfg.demo ? async () => demoProtect() : protect ? () => protect.collect() : null),
   torrents: new Topic<TorrentData>('torrents', hub, 10_000, cfg.demo ? async () => demoTorrents() : deluge ? () => deluge.collect() : null),
   links: new Topic<LinkInfo[]>('links', hub, 30_000, linksSource()),
   weather: new Topic<WeatherData>('weather', hub, 600_000, weatherSource()),
@@ -139,6 +144,8 @@ function buildMeta(): Meta {
 }
 
 for (const topic of Object.values(topics)) topic.start();
+// start listening for camera events now rather than at the first visit, so there is something to show
+if (!cfg.demo) void protect?.collect().catch(() => undefined);
 hub.publish('meta', buildMeta());
 hub.publish('config', store.state());
 
@@ -197,6 +204,7 @@ app.log.info(
     tautulli: Boolean(cfg.tautulli),
     grafana: Boolean(cfg.grafana),
     unifi: Boolean(cfg.unifi),
+    protect: Boolean(protect),
     deluge: Boolean(cfg.deluge),
     links: cfg.links.length,
     hostIp: cfg.hostIp ?? '(browser hostname)',
