@@ -149,7 +149,7 @@ Text and surfaces adjust to a custom background; a light background on a dark th
 
 ## Weather and stocks
 
-The header shows today's date, and, once you set them in the config view (general), your local weather and up to six stock prices with today's gain or loss. The widget needs a window at least 1200 pixels wide.
+The header shows today's date, and, once you set them in the config view (general), your local weather, with an icon for the current conditions (sun, moon, cloud, fog, drizzle, rain, snow or storm), and up to six stock prices with today's gain or loss. The widget needs a window at least 1200 pixels wide.
 
 ```yaml
 weather:

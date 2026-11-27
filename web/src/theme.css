@@ -178,6 +178,31 @@ button {
   align-items: baseline;
 }
 
+/* the condition icon stands beside the date and the conditions, as tall as the two lines */
+.wx-block {
+  display: flex;
+  align-items: center;
+  gap: 1.2ch;
+}
+
+.wx-icon {
+  width: 3em;
+  height: 3em;
+  flex: none;
+  fill: none;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.wi-sun,
+.wi-bolt { stroke: var(--warn); }
+.wi-moon,
+.wi-drop { stroke: var(--info); }
+.wi-cloud { stroke: var(--fg); fill: var(--bg); }
+.wi-fog { stroke: var(--dim); }
+.wi-flake { stroke: var(--strong); stroke-width: 1.2; }
+
 .hdr-widget .date,
 .wx-temp {
   color: var(--strong);

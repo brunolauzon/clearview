@@ -1,6 +1,7 @@
 import type { Quote, Snapshot, WeatherData } from '@clearview/shared';
 import { useNow } from '../hooks/useBucket';
-import { fmtPrice, fmtSigned, priceDigits, weatherGlyph } from '../lib/format';
+import { fmtPrice, fmtSigned, priceDigits, weatherKind } from '../lib/format';
+import { WeatherIcon } from './WeatherIcon';
 
 interface HeaderWidgetProps {
   weather: Snapshot<WeatherData> | null;
@@ -19,7 +20,6 @@ function Weather({ snap }: { snap: Snapshot<WeatherData> }) {
   }
   return (
     <div className={`wx-line${snap.ok ? '' : ' stale'}`} title={snap.error ?? `${w.summary} in ${w.place}`}>
-      <span className="c-accent">{weatherGlyph(w.code, w.isDay)}</span>
       <span className="wx-temp">
         {Math.round(w.temp)}°{w.unit}
       </span>
@@ -59,12 +59,18 @@ export function HeaderWidget({ weather, quotes, onConfigure }: HeaderWidgetProps
 
   return (
     <div className="hdr-widget">
-      <div className="wx-line">
-        <span className="date">{now.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>
-        <span className="c-dim">{now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</span>
+      <div className="wx-block">
+        {weather?.configured && weather.data && (
+          <WeatherIcon kind={weatherKind(weather.data.code, weather.data.isDay)} label={weather.data.summary} />
+        )}
+        <div>
+          <div className="wx-line">
+            <span className="date">{now.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>
+            <span className="c-dim">{now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</span>
+          </div>
+          {weather?.configured && <Weather snap={weather} />}
+        </div>
       </div>
-
-      {weather?.configured && <Weather snap={weather} />}
 
       {quotes?.configured &&
         (list.length > 0 ? (

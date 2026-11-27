@@ -14,7 +14,7 @@ import {
   resolveUrl,
   shortImage,
   shortUrl,
-  weatherGlyph,
+  weatherKind,
 } from './format';
 
 describe('prices', () => {
@@ -42,11 +42,15 @@ describe('fmtBitrate', () => {
   });
 });
 
-describe('weatherGlyph', () => {
-  it('covers the weather groups, with a moon at night', () => {
-    expect(weatherGlyph(0, true)).toBe('☀');
-    expect(weatherGlyph(1, false)).toBe('☾');
-    expect([2, 3, 45, 63, 75, 85, 81, 95].map((c) => weatherGlyph(c, true))).toEqual(['⛅', '☁', '≋', '☂', '❄', '❄', '☂', '⚡']);
+describe('weatherKind', () => {
+  it('picks a picture for each group of weather codes, with night versions when the sky shows', () => {
+    expect([0, 1, 2, 3].map((c) => weatherKind(c, true))).toEqual(['clear-day', 'clear-day', 'partly-day', 'cloudy']);
+    expect([0, 2, 3].map((c) => weatherKind(c, false))).toEqual(['clear-night', 'partly-night', 'cloudy']);
+    expect([45, 48, 51, 57].map((c) => weatherKind(c, true))).toEqual(['fog', 'fog', 'drizzle', 'drizzle']);
+    expect([61, 67, 80, 82].map((c) => weatherKind(c, true))).toEqual(['rain', 'rain', 'rain', 'rain']);
+    expect([71, 77, 85, 86].map((c) => weatherKind(c, true))).toEqual(['snow', 'snow', 'snow', 'snow']);
+    expect([95, 96, 99].map((c) => weatherKind(c, true))).toEqual(['storm', 'storm', 'storm']);
+    expect([4, 68, 100, -1].map((c) => weatherKind(c, true))).toEqual(['unknown', 'unknown', 'unknown', 'unknown']);
   });
 });
 
