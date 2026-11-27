@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshot-demo.png" alt="The clearview dashboard with demo data: server CPU, memory and disks in the header beside the date, weather and stock prices; network, alerts and Plex boxes; and containers grouped by category with live CPU and memory" width="800">
+  <img src="docs/screenshot-demo.png" alt="The clearview dashboard with demo data: the server name beside CPU, memory and disk meters, the date, weather and stock prices; a menu of views with problem counts; network, alerts and Plex boxes; and containers grouped by category with live CPU and memory" width="800">
   <br>
   <sub>Demo data. Try it yourself with <code>npm run dev:demo</code>.</sub>
 </p>
@@ -28,7 +28,7 @@
 - **Themes**: Dracula, Nord, Gruvbox, Tokyo Night, Catppuccin, One Dark, Monokai, Solarized and more, plus your own background and accent colours, previewed live
 - **Weather and stocks**: the date, local weather and a small stock ticker in the header
 - **Keyboard first**: `j/k`, `/` filter, `:` commands with suggestions and tab completion, `?` help
-- **Mouse, touch and screen readers**: a menu on every screen size, sortable columns, an edit button on each container, and text colours checked for contrast
+- **Mouse, touch and screen readers**: a menu on every screen size, sortable columns, an edit button on each container, layouts for phones and tablets, and text colours checked for contrast
 - **Your own shortcuts**: press a letter to open a website, for example `y` for YouTube
 
 ## Quick start (Unraid)
@@ -70,13 +70,40 @@ Fill in the server name and, if you want them, the Tautulli, Grafana, UniFi and 
 
 Release tags (`git tag v0.1.0 && git push --tags`) also publish `:0.1.0` and `:0.1`. Building on your Mac gives an arm64 image that will not run on an x86 server, so let the workflow build it, or use `docker buildx build --platform linux/amd64`.
 
+## Getting around
+
+The menu under the header lists every view with its number key. A count appears beside a view that has something to report:
+
+| Menu entry | The count is |
+|---|---|
+| **containers** | containers that are unhealthy, restarting or dead |
+| **plex** | streams playing |
+| **alerts** | alerts firing (red if any is critical) |
+| **disks** | disks at least 90% full |
+| **links** | links that are down |
+| **cameras** | cameras not connected |
+
+The browser tab's title also starts with the number of firing alerts, for example `(3) tower · clearview`.
+
+- **Mouse and touch:** click a container to open its WebUI, or **edit** on its row to change how it appears. Click the name, state, age, CPU or memory heading to sort the containers by it, and again to go back to categories. A box title with `›` on the home page opens that view.
+- **Keyboard:** `:` lists the views as you type (arrows choose, tab completes) and `/` filters the list you are on. Both also have buttons in the bottom bar. See [Keys](#keys).
+- **Lost connection:** if the page loses the server, a banner says what time the figures are from, and it reconnects on its own.
+
+### On a phone
+
+On a narrow screen the menu moves to the bottom, the boxes stack, and the containers table keeps the name, state, WebUI link and edit button.
+
+<p align="center">
+  <img src="docs/screenshot-phone.png" alt="clearview on a phone with demo data: the wordmark, two columns of CPU, memory and disk meters, the network, alerts and Plex boxes stacked, and the menu along the bottom" width="300">
+</p>
+
 ## Changing settings in the UI
 
 Choose **config** in the menu (or press `7`, or type `:config`). It has six sections; click one, or switch with `[` and `]` (or the left and right arrows):
 
 | Section | What you can do |
 |---|---|
-| **links** | add, edit and delete devices on your network |
+| **links** | add, edit and delete devices on your network (`192.168.1.1` is enough: `http://` is added) |
 | **categories** | add, edit, delete and reorder categories; pick containers from a list or use `*` wildcards |
 | **containers** | containers you have customised: shown-as name, WebUI address, category, hidden |
 | **shortcuts** | letters that open a website: add, edit and delete them |
