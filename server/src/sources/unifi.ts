@@ -6,8 +6,8 @@ import { round1 } from '../util';
 
 // UniFi Network Integration API on a UniFi OS console (UDM, UDR, Cloud Gateway, Cloud Key), read only.
 // Create the key in UniFi Network > Settings > Control Plane > Integrations.
-// Field names follow the API as typed by the open source `unifly` client; they have not been checked
-// against every console or Network version.
+// Field names follow the API as typed by the open source `unifly` client. Model names, features and
+// statistics keys were checked against a Dream Machine Pro SE; other consoles and versions may differ.
 const BASE = '/proxy/network/integration/v1';
 const PAGE = 200;
 const MAX_PAGES = 25;
@@ -100,16 +100,22 @@ export function pickSite(sites: RawSite[], wanted: string | null): RawSite | nul
   return sites.find((s) => s.internalReference === 'default') ?? sites[0] ?? null;
 }
 
-const GATEWAY_MODELS = /^(UGW|UDM|UDR|UDW|UXG|UCG)/i;
+// `model` can be a short code ("UCG-Ultra") or a product name ("UniFi Dream Machine PRO SE").
+const GATEWAY_CODES = /^(UGW|USG|UDM|UDR|UDW|UXG|UCG|EFG)/i;
+const GATEWAY_NAMES = /\b(dream (machine|router|wall)|gateway|express)\b/i;
 
-/** The gateway is recognised by its model family or by what it does; an online one wins. */
+/**
+ * The gateway is recognised by its model or by what it does: a gateway may list no routing feature at all.
+ * An online one wins, and an Express comes last because it can also serve as a plain access point.
+ */
 export function findGateway(devices: RawDevice[]): RawDevice | null {
   const isGateway = (d: RawDevice) => {
     const f = d.features ?? [];
-    return GATEWAY_MODELS.test(d.model ?? '') || f.includes('gateway') || (f.includes('routing') && f.includes('switching'));
+    const model = d.model ?? '';
+    return GATEWAY_CODES.test(model) || GATEWAY_NAMES.test(model) || f.includes('gateway') || (f.includes('routing') && f.includes('switching'));
   };
-  const found = devices.filter(isGateway);
-  return found.find((d) => d.state === 'ONLINE') ?? found[0] ?? null;
+  const rank = (d: RawDevice) => (d.state === 'ONLINE' ? 0 : 2) + (/\bexpress\b/i.test(d.model ?? '') ? 1 : 0);
+  return devices.filter(isGateway).sort((a, b) => rank(a) - rank(b))[0] ?? null;
 }
 
 export function countClients(clients: RawClient[]): UnifiData['clients'] {

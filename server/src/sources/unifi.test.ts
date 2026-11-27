@@ -32,6 +32,29 @@ describe('findGateway', () => {
     expect(findGateway([{ ...udm, id: 'old', state: 'OFFLINE' }, udm])?.id).toBe('gw');
     expect(findGateway([ap, sw])).toBeNull();
   });
+
+  // as reported by a real console: product names for some models, and no routing feature on the gateway
+  it('finds a gateway that is named in full and only lists switching', () => {
+    const real: RawDevice[] = [
+      { id: 'ap1', model: 'UAP-AC-Lite', state: 'ONLINE', features: ['accessPoint'] },
+      { id: 'gw', model: 'UniFi Dream Machine PRO SE', state: 'ONLINE', features: ['switching'] },
+      { id: 'sw', model: 'USW-24-G2', state: 'ONLINE', features: ['switching'] },
+      { id: 'ap2', model: 'U7 Outdoor', state: 'ONLINE', features: ['accessPoint'] },
+    ];
+    expect(findGateway(real)?.id).toBe('gw');
+  });
+
+  it('knows the other gateway product names', () => {
+    for (const model of ['UniFi Dream Router', 'Dream Wall', 'Cloud Gateway Fiber', 'Gateway Lite', 'UniFi Express', 'USG-Pro-4']) {
+      expect(findGateway([ap, sw, { id: 'g', model, features: ['switching'] }])?.id, model).toBe('g');
+    }
+    expect(findGateway([{ id: 'ck', model: 'UniFi Cloud Key Gen2 Plus', features: [] }])).toBeNull();
+  });
+
+  it('picks another gateway over an Express', () => {
+    const express: RawDevice = { id: 'ex', model: 'UniFi Express', state: 'ONLINE', features: ['accessPoint'] };
+    expect(findGateway([express, udm])?.id).toBe('gw');
+  });
 });
 
 describe('countClients', () => {

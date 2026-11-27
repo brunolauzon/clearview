@@ -106,7 +106,12 @@ For a UniFi console (UDM, UDR, Cloud Gateway, Cloud Key). It shows WAN download 
 3. Consoles use a self-signed certificate. Clearview refuses it unless you set `UNIFI_INSECURE=1`, which skips certificate checking for UniFi only; a device on your network could then impersonate the console and capture the key.
 4. With several sites, set `UNIFI_SITE` to the site's name.
 
-It reads the Network Integration API, which needs a recent UniFi Network version, and it only reads. The integration has not yet been checked against a real console. If something looks wrong (for example, WAN speed showing one eighth of what UniFi shows, which would mean your version reports bytes rather than bits per second), please open an issue.
+It reads the Network Integration API, which needs a recent UniFi Network version, and it only reads. Device and gateway detection has been checked against a Dream Machine Pro SE.
+
+If something looks wrong, please open an issue. Two things help:
+
+- **No gateway found, or empty WAN numbers**: include the output of `python3 scripts/unifi-check.py https://192.168.1.1` (use your console's address). It asks for the API key without showing it, and prints device models, states, features and uplink rates, with no key, addresses or device names. Like `UNIFI_INSECURE=1`, it does not verify the console's certificate.
+- **WAN speed at one eighth of what UniFi shows**: your version reports bytes rather than bits per second. This unit is not yet confirmed.
 
 ### Deluge
 

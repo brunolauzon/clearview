@@ -59,7 +59,8 @@ function NetworkPanel({ snap }: { snap: Snapshot<UnifiData> | null }) {
           {d.devices.problems.length > 3 && <div className="c-dim">+{d.devices.problems.length - 3} more</div>}
           {gw ? (
             <Row label="gateway">
-              <span className="grow-text">{gw.model || gw.name}</span>
+              {/* the box is already UniFi's, so the prefix only costs room */}
+              <span className="grow-text">{(gw.model || gw.name).replace(/^UniFi /, '')}</span>
               <span className="c-dim">
                 {gw.cpuPct !== null && `cpu ${Math.round(gw.cpuPct)}%`}
                 {gw.memPct !== null && ` · mem ${Math.round(gw.memPct)}%`}
